@@ -1,0 +1,72 @@
+{
+	"schemas": [
+		"urn:ietf:params:scim:schemas:core:2.0:User",
+		"urn:ietf:params:scim:schemas:extension:enterprise:2.0:User"
+	],
+	"active": true,
+	"displayName": "Babs Jensen",
+	"emails": [
+		{
+			"value": "bjensen@example.com",
+			"type": "work",
+			"primary": true
+		},
+		{
+			"value": "babs@jensen.org",
+			"primary": false,
+			"type": "home"
+		}
+	],
+	"externalId": "701984",
+	"groups": [
+		{
+			"value": "e9e30dba-f08f-4109-8486-d5c6a331660a",
+			"display": "Tour Guides",
+			"type": "",
+			"$ref": "https://example.com/v2/Groups/e9e30dba-f08f-4109-8486-d5c6a331660a"
+		},
+		{
+			"value": "fc348aa8-3835-40eb-a20b-c726e15c55b5",
+			"display": "Employees",
+			"type": "",
+			"$ref": "https://example.com/v2/Groups/fc348aa8-3835-40eb-a20b-c726e15c55b5"
+		},
+		{
+			"value": "71ddacd2-a8e7-49b8-a5db-ae50d0a5bfd7",
+			"display": "US Employees",
+			"type": "",
+			"$ref": "https://example.com/v2/Groups/71ddacd2-a8e7-49b8-a5db-ae50d0a5bfd7"
+		}
+	],
+	"id": "2819c223-7f76-453a-919d-413861904646",
+	"meta": {
+		"created": "0001-01-01T00:00:00Z",
+		"lastModified": "0001-01-01T00:00:00Z"
+	},
+	"name": {
+		"formatted": "Ms. Barbara J Jensen, III",
+		"familyName": "Jensen",
+		"givenName": "Barbara",
+		"middleName": "Jane",
+		"honorificPrefix": "Ms.",
+		"honorificSuffix": "III"
+	},
+	"preferredLanguage": "",
+	"roles": [],
+	"timezone": "America/Los_Angeles",
+	"title": "Tour Guide",
+	"userName": "bjensen@example.com",
+	"userType": "Employee",
+	"urn:ietf:params:scim:schemas:extension:enterprise:2.0:User": {
+		"costCenter": "4130",
+		"department": "Tour Operations",
+		"division": "Theme Park",
+		"employeeNumber": "701984",
+		"manager": {
+			"value": "26118915-6090-4610-87e4-49d8ca9f808d",
+			"$ref": "../Users/26118915-6090-4610-87e4-49d8ca9f808d",
+			"displayName": "John Smith"
+		},
+		"organization": "Universal Studios"
+	}
+}
