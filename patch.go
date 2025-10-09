@@ -5,9 +5,8 @@ import (
 	"reflect"
 
 	"github.com/memsql/errors"
-
-	"singlestore.com/helios/scim/scimprotocol/scimerror"
-	"singlestore.com/helios/scim/scimprotocol/scimtag"
+	"github.com/singlestore-labs/scim/scimerror"
+	"github.com/singlestore-labs/scim/scimtag"
 )
 
 type PatchOperation struct {

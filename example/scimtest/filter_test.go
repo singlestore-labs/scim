@@ -1,18 +1,17 @@
-package scimtestv2
+package scimtest
 
 import (
 	"reflect"
 	"testing"
 
+	scimprotocol "github.com/singlestore-labs/scim"
+	"github.com/singlestore-labs/scim/example"
+	"github.com/singlestore-labs/scim/scimtag"
 	"github.com/stretchr/testify/require"
-
-	"singlestore.com/helios/scim/scimmodelsv2"
-	"singlestore.com/helios/scim/scimprotocol"
-	"singlestore.com/helios/scim/scimprotocol/scimtag"
 )
 
 func init() {
-	scimtag.BuildAllSCIMCharacsCache(scimmodelsv2.SCIMUser{})
+	scimtag.BuildAllSCIMCharacsCache(example.SCIMUser{})
 }
 
 func TestFilterExpressionEvaluation(t *testing.T) {

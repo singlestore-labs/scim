@@ -1,14 +1,13 @@
-package scimtestv2
+package scimtest
 
 import (
 	"reflect"
 	"testing"
 
+	scimprotocol "github.com/singlestore-labs/scim"
+	"github.com/singlestore-labs/scim/example"
+	"github.com/singlestore-labs/scim/util"
 	"github.com/stretchr/testify/require"
-
-	"singlestore.com/helios/scim/scimmodelsv2"
-	"singlestore.com/helios/scim/scimprotocol"
-	"singlestore.com/helios/scim/scimprotocol/util"
 )
 
 func TestSCIMMarshalJSON(t *testing.T) {
@@ -29,7 +28,7 @@ func TestSCIMMarshalUserWithoutExtension(t *testing.T) {
 
 func TestSCIMUnmarshalUserWithoutExtension(t *testing.T) {
 	t.Parallel()
-	var user scimmodelsv2.SCIMUser
+	var user example.SCIMUser
 	err := scimprotocol.Unmarshal(ExampleUserCoreJSON, &user)
 	require.NoError(t, err)
 	expect := ExampleUserCore
@@ -41,13 +40,13 @@ func TestSCIMUnmarshalUserWithExtension(t *testing.T) {
 	t.Parallel()
 	{
 		t.Log("test unmarshal required")
-		var user scimmodelsv2.SCIMUser
+		var user example.SCIMUser
 		err := scimprotocol.Unmarshal(replaceFieldFromJSON(t, ExampleUserWithExtensionJSON, "userName", nil), &user)
 		require.Error(t, err)
 	}
 	{
 		t.Log("test marshal with extra data")
-		var user scimmodelsv2.SCIMUser
+		var user example.SCIMUser
 		err := scimprotocol.Unmarshal(ExampleFullUserJSON, &user)
 		require.NoError(t, err)
 		expect := ExampleUserWithExtension
@@ -76,7 +75,7 @@ func TestResourceTypeMarhsal(t *testing.T) {
 		ID:                 "User",
 		Name:               "User",
 		Endpoint:           "/User",
-		ResourceObjectType: reflect.TypeOf(scimmodelsv2.SCIMUser{}), // no need content
+		ResourceObjectType: reflect.TypeOf(example.SCIMUser{}), // no need content
 		Meta: scimprotocol.ResourceTypeMeta{
 			Location: "https://example.com/v2/ResourceTypes/User",
 		},

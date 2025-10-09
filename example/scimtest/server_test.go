@@ -1,4 +1,4 @@
-package scimtestv2
+package scimtest
 
 import (
 	"encoding/json"
@@ -9,17 +9,28 @@ import (
 	"testing"
 	"time"
 
+	"github.com/memsql/ntest"
 	"github.com/muir/nchi"
+	scimprotocol "github.com/singlestore-labs/scim"
+	"github.com/singlestore-labs/scim/example"
+	"github.com/singlestore-labs/scim/util"
 	"github.com/stretchr/testify/require"
-
-	"singlestore.com/helios/scim/scimlib"
-	"singlestore.com/helios/scim/scimmodels"
-	"singlestore.com/helios/scim/scimmodelsv2"
-	"singlestore.com/helios/scim/scimprotocol"
-	"singlestore.com/helios/scim/scimprotocol/util"
-	"singlestore.com/helios/test/di"
-	"singlestore.com/helios/trace"
 )
+
+const (
+	testSCIMEndpoint  = "/testscim"
+	scimExampleDomain = "scimexample.com"
+)
+
+var getSCIMRouter = func(t ntest.T, tracer util.Trace, storage *example.Storage) *nchi.Mux {
+	r := nchi.NewRouter()
+	t.Log("set up server")
+	scimServer := example.NewServer(tracer, storage)
+	scimRouter := example.SCIMRouter(tracer, scimServer)
+	// r.Route(testSCIMEndpoint+"/:scimID", scimRouter)
+	r.Route(testSCIMEndpoint, scimRouter)
+	return r
+}
 
 /*
 This file only test over the server handler functions
@@ -36,26 +47,25 @@ type SCIMMeta struct {
 }
 
 func TestSCIMServer(t *testing.T) {
-	di.IntegrationTest(t,
-		di.InjectTimeLimit(300*time.Second),
-		TestSCIMConnection,
+	ntest.RunTest(t,
+		func() (util.Trace, *example.Storage) { return util.Trace(t), example.NewInMemStorage() },
 		getSCIMRouter,
 		func(
-			scimLib *scimlib.Library,
-			tracer trace.Iface,
-			scimConn scimmodels.SCIMConnectionGQLOutput,
+			tracer util.Trace,
 			r *nchi.Mux,
 		) {
-			scimID := scimConn.SCIMID.String()
-			baseURL := testSCIMEndpoint + "/" + scimID
+			// scimID := scimConn.SCIMID.String()
+			baseURL := testSCIMEndpoint
+			apiKey := example.DummyToken
 
 			t.Logf("base url %s", baseURL)
 			t.Log("test post")
-			createdUserJSON, postCode := requestEndpointHelper(t, r, *scimConn.APIKey,
+			createdUserJSON, postCode := requestEndpointHelper(t, r, apiKey,
 				http.MethodPost, baseURL+"/Users", strings.NewReader(string(ExampleUserCoreJSON)))
 			require.Equal(t, http.StatusCreated, postCode, string(createdUserJSON))
 			// set expect value
 			dynamicFields := DynamicFields{}
+
 			require.NoError(t, json.Unmarshal(createdUserJSON, &dynamicFields))
 			expectCreatedJson := replaceFieldFromJSON(t, ExampleUserCoreJSON, "id", dynamicFields.ID) // set id
 			expectCreatedJson = replaceFieldFromJSON(t, expectCreatedJson, "groups", nil)             // group should created by with group endpoint
@@ -65,31 +75,32 @@ func TestSCIMServer(t *testing.T) {
 
 			require.JSONEq(t,
 				string(util.PrettyJSON(t, expectCreatedJson)),
-				string(util.PrettyJSON(t, createdUserJSON)))
+				string(util.PrettyJSON(t, createdUserJSON)),
+			)
 
 			t.Log("test get list")
 			// set expect value
-			var createdUser scimmodelsv2.SCIMUser
+			var createdUser example.SCIMUser
 			require.NoError(t, scimprotocol.Unmarshal(createdUserJSON, &createdUser))
 			createdUser.ID = dynamicFields.ID // unmarshal will not unmarshal id
 			createdUser.Meta.Created = dynamicFields.Meta.Created
 			createdUser.Meta.LastModified = dynamicFields.Meta.LastModified
-			createdUser.Groups = []scimmodelsv2.Group{}
-			expectListResp := scimprotocol.ListResponse[scimmodelsv2.SCIMUser]{
-				Resources:    []scimmodelsv2.SCIMUser{createdUser},
+			createdUser.Groups = []example.Group{}
+			expectListResp := scimprotocol.ListResponse[example.SCIMUser]{
+				Resources:    []example.SCIMUser{createdUser},
 				StartIndex:   1,
 				ItemsPerPage: 100,
 				TotalResults: 1,
 			}
 			expectJson, err := expectListResp.MarshalSCIM()
 			require.NoError(t, err)
-			usersJSON, getListCode := requestEndpointHelper(t, r, *scimConn.APIKey,
+			usersJSON, getListCode := requestEndpointHelper(t, r, apiKey,
 				http.MethodGet, baseURL+"/Users", nil)
 			require.Equal(t, http.StatusOK, getListCode)
 			require.JSONEq(t, string(util.PrettyJSON(t, expectJson)), string(util.PrettyJSON(t, usersJSON)))
 
 			t.Log("test get one")
-			getJSON, getCode := requestEndpointHelper(t, r, *scimConn.APIKey,
+			getJSON, getCode := requestEndpointHelper(t, r, apiKey,
 				http.MethodGet, baseURL+"/Users/"+createdUser.ID, strings.NewReader(string(ExampleFullUserJSON)))
 			require.Equal(t, http.StatusOK, getCode)
 			require.JSONEq(t,
@@ -99,7 +110,7 @@ func TestSCIMServer(t *testing.T) {
 			t.Log("test update")
 			updateInput := replaceFieldFromJSON(t, ExampleUserCoreJSON, "id", createdUser.ID)
 			updateInput = replaceFieldFromJSON(t, updateInput, "timezone", nil)
-			updateJSON, updateCode := requestEndpointHelper(t, r, *scimConn.APIKey,
+			updateJSON, updateCode := requestEndpointHelper(t, r, apiKey,
 				http.MethodPut, baseURL+"/Users/"+createdUser.ID, strings.NewReader(string(updateInput)))
 			require.Equal(t, http.StatusOK, updateCode)
 			// set expect value
@@ -112,7 +123,7 @@ func TestSCIMServer(t *testing.T) {
 				string(util.PrettyJSON(t, updateJSON)))
 
 			t.Log("test patch")
-			patchedJSON, patchedCode := requestEndpointHelper(t, r, *scimConn.APIKey,
+			patchedJSON, patchedCode := requestEndpointHelper(t, r, apiKey,
 				http.MethodPatch, baseURL+"/Users/"+createdUser.ID, strings.NewReader(`
 			{
 				"schemas":["urn:ietf:params:scim:api:messages:2.0:PatchOp"],
@@ -133,7 +144,7 @@ func TestSCIMServer(t *testing.T) {
 				string(util.PrettyJSON(t, patchedJSON)))
 
 			t.Log("test delete")
-			_, deleteCode := requestEndpointHelper(t, r, *scimConn.APIKey,
+			_, deleteCode := requestEndpointHelper(t, r, apiKey,
 				http.MethodDelete, baseURL+"/Users/"+createdUser.ID, nil)
 			require.Equal(t, http.StatusNoContent, deleteCode)
 		})

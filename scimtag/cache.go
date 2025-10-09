@@ -5,8 +5,7 @@ import (
 
 	"github.com/memsql/errors"
 	"github.com/muir/reflectutils"
-
-	"singlestore.com/helios/scim/scimprotocol/scimerror"
+	"github.com/singlestore-labs/scim/scimerror"
 )
 
 // map[Struct Type]map[AttributeName]CacheValue

@@ -3,11 +3,10 @@ package scimprotocol_test
 import (
 	"testing"
 
+	scimprotocol "github.com/singlestore-labs/scim"
+	"github.com/singlestore-labs/scim/scimtag"
+	"github.com/singlestore-labs/scim/util"
 	"github.com/stretchr/testify/require"
-
-	"singlestore.com/helios/scim/scimprotocol"
-	"singlestore.com/helios/scim/scimprotocol/scimtag"
-	"singlestore.com/helios/scim/scimprotocol/util"
 )
 
 func init() {

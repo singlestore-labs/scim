@@ -9,8 +9,7 @@ import (
 	"github.com/alecthomas/participle/v2"
 	"github.com/alecthomas/participle/v2/lexer"
 	"github.com/memsql/errors"
-
-	"singlestore.com/helios/scim/scimprotocol/scimerror"
+	"github.com/singlestore-labs/scim/scimerror"
 )
 
 // Filter Parse doc: https://datatracker.ietf.org/doc/html/rfc7644#section-3.4.2.2

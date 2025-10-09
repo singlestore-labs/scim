@@ -8,9 +8,8 @@ import (
 	"time"
 
 	"github.com/memsql/errors"
-
-	"singlestore.com/helios/scim/scimprotocol/scimerror"
-	"singlestore.com/helios/scim/scimprotocol/scimtag"
+	"github.com/singlestore-labs/scim/scimerror"
+	"github.com/singlestore-labs/scim/scimtag"
 )
 
 // EvalHelper is a helper function that evaluate filter expression against to the Object Reflect Value
@@ -270,4 +269,25 @@ func schemaFilterHelper(coreSchema string, extensions []SchemaExtention, inputVa
 		}
 	}
 	return false, nil
+}
+
+func GetFilteredResources[T Resource](filter *OrExpression, inputs []T) ([]T, error) {
+	checkFilter := func(resource T) (bool, error) {
+		if filter != nil {
+			return filter.Eval(reflect.ValueOf(resource), false)
+		}
+		return true, nil
+	}
+
+	filtered := []T{}
+	for _, u := range inputs {
+		pass, err := checkFilter(u)
+		if err != nil {
+			return nil, err
+		}
+		if pass {
+			filtered = append(filtered, u)
+		}
+	}
+	return filtered, nil
 }

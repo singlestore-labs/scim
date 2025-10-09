@@ -1,9 +1,9 @@
-package scimtestv2
+package scimtest
 
 import (
 	_ "embed"
 
-	"singlestore.com/helios/scim/scimmodelsv2"
+	"github.com/singlestore-labs/scim/example"
 )
 
 //go:embed user_core.json
@@ -15,11 +15,11 @@ var ExampleUserWithExtensionJSON []byte
 //go:embed user_full.json
 var ExampleFullUserJSON []byte
 
-var ExampleUserCore = scimmodelsv2.SCIMUser{
-	CoreUser: scimmodelsv2.CoreUser{
+var ExampleUserCore = example.SCIMUser{
+	CoreUser: example.CoreUser{
 		Active:      true,
 		DisplayName: "Babs Jensen",
-		Emails: []scimmodelsv2.Email{
+		Emails: []example.Email{
 			{
 				Value:   "bjensen@example.com",
 				Type:    "work",
@@ -31,7 +31,7 @@ var ExampleUserCore = scimmodelsv2.SCIMUser{
 			},
 		},
 		ExternalID: "701984",
-		Groups: []scimmodelsv2.Group{
+		Groups: []example.Group{
 			{
 				Value:   "e9e30dba-f08f-4109-8486-d5c6a331660a",
 				Ref:     "https://example.com/v2/Groups/e9e30dba-f08f-4109-8486-d5c6a331660a",
@@ -49,7 +49,7 @@ var ExampleUserCore = scimmodelsv2.SCIMUser{
 			},
 		},
 		ID: "2819c223-7f76-453a-919d-413861904646",
-		Name: scimmodelsv2.Name{
+		Name: example.Name{
 			Formatted:       "Ms. Barbara J Jensen, III",
 			FamilyName:      "Jensen",
 			GivenName:       "Barbara",
@@ -66,11 +66,11 @@ var ExampleUserCore = scimmodelsv2.SCIMUser{
 	},
 }
 
-var ExampleUserWithExtension = scimmodelsv2.SCIMUser{
-	CoreUser: scimmodelsv2.CoreUser{
+var ExampleUserWithExtension = example.SCIMUser{
+	CoreUser: example.CoreUser{
 		Active:      true,
 		DisplayName: "Babs Jensen",
-		Emails: []scimmodelsv2.Email{
+		Emails: []example.Email{
 			{
 				Value:   "bjensen@example.com",
 				Type:    "work",
@@ -82,7 +82,7 @@ var ExampleUserWithExtension = scimmodelsv2.SCIMUser{
 			},
 		},
 		ExternalID: "701984",
-		Groups: []scimmodelsv2.Group{
+		Groups: []example.Group{
 			{
 				Value:   "e9e30dba-f08f-4109-8486-d5c6a331660a",
 				Ref:     "https://example.com/v2/Groups/e9e30dba-f08f-4109-8486-d5c6a331660a",
@@ -100,7 +100,7 @@ var ExampleUserWithExtension = scimmodelsv2.SCIMUser{
 			},
 		},
 		ID: "2819c223-7f76-453a-919d-413861904646",
-		Name: scimmodelsv2.Name{
+		Name: example.Name{
 			Formatted:       "Ms. Barbara J Jensen, III",
 			FamilyName:      "Jensen",
 			GivenName:       "Barbara",

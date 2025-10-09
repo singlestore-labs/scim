@@ -5,9 +5,8 @@ import (
 	"strings"
 
 	"github.com/memsql/errors"
-
-	"singlestore.com/helios/scim/scimprotocol/scimerror"
-	"singlestore.com/helios/scim/scimprotocol/scimtag"
+	"github.com/singlestore-labs/scim/scimerror"
+	"github.com/singlestore-labs/scim/scimtag"
 )
 
 // GetSchemaURIFromResource is a helper function to get schema URI and extension URIs for ResourceType from self-defined SCIM resource struct, like User, Group

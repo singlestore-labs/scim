@@ -4,9 +4,8 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/singlestore-labs/scim/scimtag"
 	"github.com/stretchr/testify/require"
-
-	"singlestore.com/helios/scim/scimprotocol/scimtag"
 )
 
 func init() {

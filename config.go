@@ -25,7 +25,7 @@ func (r Config) MarshalSCIM(reqURL string) ([]byte, error) {
 	}
 	outputFormat := map[string]any{
 		"schemas": []string{"urn:ietf:params:scim:schemas:core:2.0:ServiceProviderConfig"},
-		// TODO: MCDB-65655 replace with single store scim doc
+		// TODO: replace with single store scim doc
 		"documentationUri": "http://example.com/help/scim.html",
 		"patch": map[string]any{
 			"supported": r.PatchSupported,

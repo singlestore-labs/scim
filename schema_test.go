@@ -6,11 +6,10 @@ import (
 	"sort"
 	"testing"
 
+	scimprotocol "github.com/singlestore-labs/scim"
+	"github.com/singlestore-labs/scim/scimtag"
+	"github.com/singlestore-labs/scim/util"
 	"github.com/stretchr/testify/require"
-
-	"singlestore.com/helios/scim/scimprotocol"
-	"singlestore.com/helios/scim/scimprotocol/scimtag"
-	"singlestore.com/helios/util/pointer"
 )
 
 /*
@@ -44,10 +43,10 @@ func TestGetSchema(t *testing.T) {
 			Type:        "string",
 			MultiValued: false,
 			Required:    true,
-			CaseExact:   pointer.To(true),
+			CaseExact:   util.ToPtr(true),
 			Mutability:  scimtag.ReadWrite,
 			Returned:    scimtag.Default,
-			Uniqueness:  pointer.To("none"),
+			Uniqueness:  util.ToPtr("none"),
 		},
 		{
 			Name:        "emails",
@@ -55,17 +54,17 @@ func TestGetSchema(t *testing.T) {
 			MultiValued: true,
 			Mutability:  scimtag.ReadWrite, // azure required
 			Required:    false,
-			Uniqueness:  pointer.To("none"),
+			Uniqueness:  util.ToPtr("none"),
 			SubAttributes: []scimprotocol.AttributeSchema{
 				{
 					Name:        "value",
 					Type:        "string",
 					MultiValued: false,
 					Required:    false,
-					CaseExact:   pointer.To(false),
+					CaseExact:   util.ToPtr(false),
 					Mutability:  scimtag.ReadWrite,
 					Returned:    scimtag.Default,
-					Uniqueness:  pointer.To("none"),
+					Uniqueness:  util.ToPtr("none"),
 				},
 			},
 		},

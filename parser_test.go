@@ -269,6 +269,7 @@ func TestExpression(t *testing.T) {
 			},
 		},
 	}
+
 	parser := participle.MustBuild[Expression](
 		participle.Lexer(Lex),
 		participle.Union[Expr](Expression{}, NotExpression{}),

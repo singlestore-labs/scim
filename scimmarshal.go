@@ -8,9 +8,8 @@ import (
 	"github.com/google/uuid"
 	"github.com/memsql/errors"
 	"github.com/muir/reflectutils"
-
-	"singlestore.com/helios/scim/scimprotocol/scimerror"
-	"singlestore.com/helios/scim/scimprotocol/scimtag"
+	"github.com/singlestore-labs/scim/scimerror"
+	"github.com/singlestore-labs/scim/scimtag"
 )
 
 type SCIMMarshaler interface {

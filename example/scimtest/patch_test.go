@@ -1,13 +1,12 @@
-package scimtestv2
+package scimtest
 
 import (
 	"reflect"
 	"testing"
 
+	scimprotocol "github.com/singlestore-labs/scim"
+	"github.com/singlestore-labs/scim/example"
 	"github.com/stretchr/testify/require"
-
-	"singlestore.com/helios/scim/scimmodelsv2"
-	"singlestore.com/helios/scim/scimprotocol"
 )
 
 func TestPatchAdd(t *testing.T) {
@@ -51,7 +50,7 @@ func TestPatchAdd(t *testing.T) {
 		   `),
 			want: func(err error, msg string) {
 				require.NoError(t, err)
-				expectUser.Emails = append(expectUser.Emails, scimmodelsv2.Email{
+				expectUser.Emails = append(expectUser.Emails, example.Email{
 					Value: "addbabs@jensen.org",
 					Type:  "home",
 				})
@@ -90,7 +89,7 @@ func TestPatchAdd(t *testing.T) {
 			value: []byte(`"addbyFilter@jensen.org"`),
 			want: func(err error, msg string) {
 				require.NoError(t, err)
-				expectUser.Emails = append(expectUser.Emails, scimmodelsv2.Email{
+				expectUser.Emails = append(expectUser.Emails, example.Email{
 					Type:  "other",
 					Value: "addbyFilter@jensen.org",
 				})
@@ -137,7 +136,7 @@ func TestPatchAdd(t *testing.T) {
 			want: func(err error, msg string) {
 				require.NoError(t, err)
 				expectUser.Emails[0].Primary = false
-				expectUser.Emails = append(expectUser.Emails, scimmodelsv2.Email{
+				expectUser.Emails = append(expectUser.Emails, example.Email{
 					Value:   "add4babs@jensen.org",
 					Type:    "home",
 					Primary: true,
@@ -220,7 +219,7 @@ func TestPatchReplace(t *testing.T) {
 		   `),
 			want: func(err error, msg string) {
 				require.NoError(t, err, msg)
-				expectUser.Emails = []scimmodelsv2.Email{
+				expectUser.Emails = []example.Email{
 					{
 						Value: "addbabs@jensen.org",
 						Type:  "home",
@@ -252,7 +251,7 @@ func TestPatchReplace(t *testing.T) {
 				}`),
 			want: func(err error, msg string) {
 				require.NoError(t, err, msg)
-				expectUser.Emails[0] = scimmodelsv2.Email{
+				expectUser.Emails[0] = example.Email{
 					Value: `addAfterFilter@jensen.org`,
 					Type:  "home",
 				}
@@ -278,7 +277,7 @@ func TestPatchReplace(t *testing.T) {
 			}`),
 			want: func(err error, msg string) {
 				require.NoError(t, err, msg)
-				expectUser.Name = scimmodelsv2.Name{
+				expectUser.Name = example.Name{
 					GivenName:  "John",
 					FamilyName: "Doe",
 				}
@@ -300,7 +299,7 @@ func TestPatchReplace(t *testing.T) {
 			}`),
 			want: func(err error, msg string) {
 				require.NoError(t, err, msg)
-				expectUser.Emails = []scimmodelsv2.Email{
+				expectUser.Emails = []example.Email{
 					{
 						Value:   "add4babs@jensen.org",
 						Type:    "home",
@@ -387,7 +386,7 @@ func TestPatchRemove(t *testing.T) {
 			}`),
 			want: func(err error, msg string) {
 				require.NoError(t, err, msg)
-				expectUser.Name = scimmodelsv2.Name{}
+				expectUser.Name = example.Name{}
 				require.Equal(t, expectUser, testUser, err, msg)
 			},
 		},

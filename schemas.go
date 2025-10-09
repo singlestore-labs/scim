@@ -6,9 +6,8 @@ import (
 	"time"
 
 	"github.com/memsql/errors"
-
-	"singlestore.com/helios/scim/scimprotocol/scimtag"
-	"singlestore.com/helios/util/pointer"
+	"github.com/singlestore-labs/scim/scimtag"
+	"github.com/singlestore-labs/scim/util"
 )
 
 // Schema's name and description is option in rfc and not fit in scim tag, so not include for now.
@@ -94,7 +93,7 @@ func getAttributeSchema(fieldT reflect.Type, scimCharacs scimtag.Characteristics
 	attrSchema.Required = scimCharacs.Required
 	attrSchema.Mutability = scimCharacs.Mutability
 	attrSchema.Returned = scimCharacs.Returned
-	attrSchema.Uniqueness = pointer.To(scimCharacs.Uniqueness.String())
+	attrSchema.Uniqueness = util.ToPtr(scimCharacs.Uniqueness.String())
 	if attrSchema.Type == "boolean" {
 		attrSchema.Uniqueness = nil
 	}
@@ -108,9 +107,9 @@ func getAttributeSchema(fieldT reflect.Type, scimCharacs scimtag.Characteristics
 		// azure support, empty canonical value returned in schema
 		if len(scimCharacs.CanonicalValues) != 0 {
 			if len(scimCharacs.CanonicalValues) == 2 && scimCharacs.CanonicalValues[0] == "" && scimCharacs.CanonicalValues[1] == "" {
-				attrSchema.CanonicalValues = pointer.To([]string{})
+				attrSchema.CanonicalValues = util.ToPtr([]string{})
 			} else {
-				attrSchema.CanonicalValues = pointer.To(scimCharacs.CanonicalValues)
+				attrSchema.CanonicalValues = util.ToPtr(scimCharacs.CanonicalValues)
 			}
 		}
 	}
