@@ -41,34 +41,33 @@ func GetListResourceHelper[T scimprotocol.Resource](
 	itemsPerPage int,
 	getAllResourceData func(ctx context.Context) ([]T, error),
 ) (nvelope.Response, error) {
-	filterStr := r.URL.Query().Get("filter")
-	attributes := toStrArray(r.URL.Query().Get("attributes"))
-	excludedAttributes := toStrArray(r.URL.Query().Get("excludedAttributes"))
+	startIndex := 1 // default startIndex is 1
 	inputStartIndex := r.URL.Query().Get("startIndex")
-	inputCount := r.URL.Query().Get("count")
-
-	startIndex := 1
 	if inputStartIndex != "" {
 		inputStart, err := strconv.Atoi(inputStartIndex)
 		if err != nil {
-			return nil, err
+			return nil, scimerror.NewBadRequestSCIMErr(scimerror.InvalidSyntax, errors.Wrapf(err, "invalid input startIndex, %s", inputStartIndex))
 		}
 		if inputStart > 1 {
 			startIndex = inputStart
 		}
 	}
-	count := itemsPerPage
+
+	count := itemsPerPage // default count is itemsPerPage
+	inputCount := r.URL.Query().Get("count")
 	if inputCount != "" {
 		inputCount, err := strconv.Atoi(inputCount)
 		if err != nil {
-			return nil, err
+			return nil, scimerror.NewBadRequestSCIMErr(scimerror.InvalidSyntax, errors.Wrapf(err, "invalid input count, %s", inputCount))
 		}
-		if inputCount > 0 {
-			count = inputCount
+		count = inputCount
+		if count < 0 {
+			count = 0
 		}
 	}
 
 	var filter *scimprotocol.OrExpression
+	filterStr := r.URL.Query().Get("filter")
 	if len(filterStr) > 0 {
 		var err error
 		filter, err = scimprotocol.ParseFilter(filterStr)
@@ -77,41 +76,26 @@ func GetListResourceHelper[T scimprotocol.Resource](
 		}
 	}
 
-	checkFilter := func(resource T) (bool, error) {
-		if filter != nil {
-			return filter.Eval(reflect.ValueOf(resource), false)
-		}
-		return true, nil
-	}
-	// TODO:MCDB-63978 pass filter to get user function while doing row.Next()
 	all, err := getAllResourceData(r.Context())
 	if err != nil {
 		return false, errors.Wrapf(err, "failed to get all resource (%T) data from db in SCIM", all)
 	}
-	filtered := []T{}
-	for _, u := range all {
-		pass, err := checkFilter(u)
-		if err != nil {
-			return false, err
-		}
-		if pass {
-			filtered = append(filtered, u)
-		}
+	filtered, err := scimprotocol.GetFilteredResources(filter, all)
+	if err != nil {
+		return nil, err
 	}
+	totalResultNum := len(filtered)
 
 	// only return current page data
-	var currentPageResources []T
-	totalResultNum := len(filtered)
-	if startIndex <= len(filtered) {
-		resultStart := startIndex - 1
-		resultEnd := startIndex + count - 1
-		if resultEnd > len(filtered) {
-			resultEnd = len(filtered)
-		}
-		currentPageResources = filtered[resultStart:resultEnd]
+	currentPageResources, err := getCurrentPageResources(filtered, startIndex, count)
+	if err != nil {
+		return nil, err
 	}
 
 	// clean return data
+	// sqsq TODO make Marshal with attributes and excludedAttributes
+	attributes := toStrArray(r.URL.Query().Get("attributes"))
+	excludedAttributes := toStrArray(r.URL.Query().Get("excludedAttributes"))
 	var result []json.RawMessage
 	if len(attributes) > 0 || len(excludedAttributes) > 0 {
 		for _, u := range currentPageResources {
@@ -139,6 +123,29 @@ func GetListResourceHelper[T scimprotocol.Resource](
 		StartIndex:   startIndex,
 		TotalResults: totalResultNum,
 	}, nil
+}
+
+// getCurrentPageResources get the resources for current page according to startIndex and count
+// Input: startIndex MUST >= 1, count MUST >= 0
+func getCurrentPageResources[T scimprotocol.Resource](inputResource []T, startIndex, count int) ([]T, error) {
+	resultStart := 0
+	resultEnd := len(inputResource)
+
+	targetStart := startIndex - 1
+	targetEnd := startIndex + count - 1
+	if count == 0 || targetStart > resultEnd {
+		return []T{}, nil
+	}
+
+	if targetStart > 0 {
+		resultStart = targetStart
+	}
+
+	if targetEnd < resultEnd && targetEnd > 0 {
+		resultEnd = targetEnd
+	}
+
+	return inputResource[resultStart:resultEnd], nil
 }
 
 func PatchResourceHelper[T scimprotocol.Resource, IDType string](r *http.Request, resourceID IDType,
