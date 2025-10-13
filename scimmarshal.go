@@ -20,7 +20,11 @@ type SCIMUnmarshaler interface {
 	UnmarshalSCIM([]byte) error
 }
 
-func Marshal(obj any) (_ []byte, err error) {
+func Marshal(obj any) ([]byte, error) {
+	return MarshalWithSelectedAttr(obj, nil, false)
+}
+
+func MarshalWithSelectedAttr(obj any, selectedAttr []string, excludeSelected bool) (_ []byte, err error) {
 	objV := reflect.ValueOf(obj)
 	objT := objV.Type()
 	if objV.Type().Kind() == reflect.Pointer {
@@ -42,7 +46,7 @@ func Marshal(obj any) (_ []byte, err error) {
 		objV := reflect.ValueOf(obj)
 		jsonList := []json.RawMessage{}
 		for i := 0; i < objV.Len(); i++ {
-			j, err := Marshal(objV.Index(i).Interface())
+			j, err := MarshalWithSelectedAttr(objV.Index(i).Interface(), selectedAttr, excludeSelected)
 			if err != nil {
 				return nil, errors.Errorf("cannot marshal slice/array (%s, %+v): %w\n", objV.Type(), obj, err)
 			}
@@ -51,10 +55,11 @@ func Marshal(obj any) (_ []byte, err error) {
 		return json.Marshal(jsonList)
 	}
 
+	// TODO: move this part before array? separate PR
 	if customizedMarshal, ok := obj.(SCIMMarshaler); ok {
 		return customizedMarshal.MarshalSCIM()
 	} else if resource, ok := obj.(Resource); ok {
-		return ResourceMarshal(resource, nil, false)
+		return ResourceMarshal(resource, selectedAttr, excludeSelected)
 	}
 	return nil, errors.Errorf("input object neither 'Resource' nor 'SCIMMarshaler', %T, %+v\n", obj, obj)
 }
