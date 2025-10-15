@@ -2,8 +2,6 @@ package scimtest
 
 import (
 	_ "embed"
-
-	"github.com/singlestore-labs/scim/example"
 )
 
 //go:embed user_core.json
@@ -15,11 +13,11 @@ var ExampleUserWithExtensionJSON []byte
 //go:embed user_full.json
 var ExampleFullUserJSON []byte
 
-var ExampleUserCore = example.SCIMUser{
-	CoreUser: example.CoreUser{
+var ExampleUserCore = SCIMUser{
+	CoreUser: CoreUser{
 		Active:      true,
 		DisplayName: "Babs Jensen",
-		Emails: []example.Email{
+		Emails: []Email{
 			{
 				Value:   "bjensen@example.com",
 				Type:    "work",
@@ -31,7 +29,7 @@ var ExampleUserCore = example.SCIMUser{
 			},
 		},
 		ExternalID: "701984",
-		Groups: []example.Group{
+		Groups: []Group{
 			{
 				Value:   "e9e30dba-f08f-4109-8486-d5c6a331660a",
 				Ref:     "https://example.com/v2/Groups/e9e30dba-f08f-4109-8486-d5c6a331660a",
@@ -49,7 +47,7 @@ var ExampleUserCore = example.SCIMUser{
 			},
 		},
 		ID: "2819c223-7f76-453a-919d-413861904646",
-		Name: example.Name{
+		Name: Name{
 			Formatted:       "Ms. Barbara J Jensen, III",
 			FamilyName:      "Jensen",
 			GivenName:       "Barbara",
@@ -66,11 +64,11 @@ var ExampleUserCore = example.SCIMUser{
 	},
 }
 
-var ExampleUserWithExtension = example.SCIMUser{
-	CoreUser: example.CoreUser{
+var ExampleUserWithExtension = SCIMUser{
+	CoreUser: CoreUser{
 		Active:      true,
 		DisplayName: "Babs Jensen",
-		Emails: []example.Email{
+		Emails: []Email{
 			{
 				Value:   "bjensen@example.com",
 				Type:    "work",
@@ -82,7 +80,7 @@ var ExampleUserWithExtension = example.SCIMUser{
 			},
 		},
 		ExternalID: "701984",
-		Groups: []example.Group{
+		Groups: []Group{
 			{
 				Value:   "e9e30dba-f08f-4109-8486-d5c6a331660a",
 				Ref:     "https://example.com/v2/Groups/e9e30dba-f08f-4109-8486-d5c6a331660a",
@@ -100,7 +98,7 @@ var ExampleUserWithExtension = example.SCIMUser{
 			},
 		},
 		ID: "2819c223-7f76-453a-919d-413861904646",
-		Name: example.Name{
+		Name: Name{
 			Formatted:       "Ms. Barbara J Jensen, III",
 			FamilyName:      "Jensen",
 			GivenName:       "Barbara",

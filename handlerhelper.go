@@ -1,4 +1,4 @@
-package example
+package scimprotocol
 
 import (
 	"context"
@@ -10,12 +10,11 @@ import (
 
 	"github.com/memsql/errors"
 	"github.com/muir/nvelope"
-	scimprotocol "github.com/singlestore-labs/scim"
 	"github.com/singlestore-labs/scim/scimerror"
 	"github.com/singlestore-labs/scim/util"
 )
 
-func GetResourceHelper[T scimprotocol.Resource](
+func GetResourceHelper[T Resource](
 	r *http.Request,
 	resourceID string,
 	getResourceData func(ctx context.Context, resourceID string) (T, error),
@@ -30,11 +29,11 @@ func GetResourceHelper[T scimprotocol.Resource](
 	if len(excludedAttributes) > 0 {
 		attributes = excludedAttributes
 	}
-	result, err := scimprotocol.ResourceMarshal(data, attributes, len(excludedAttributes) > 0)
+	result, err := ResourceMarshal(data, attributes, len(excludedAttributes) > 0)
 	return result, err
 }
 
-func GetListResourceHelper[T scimprotocol.Resource](
+func GetListResourceHelper[T Resource](
 	r *http.Request,
 	trace util.Trace,
 	itemsPerPage int,
@@ -65,11 +64,11 @@ func GetListResourceHelper[T scimprotocol.Resource](
 		}
 	}
 
-	var filter *scimprotocol.OrExpression
+	var filter *OrExpression
 	filterStr := r.URL.Query().Get("filter")
 	if len(filterStr) > 0 {
 		var err error
-		filter, err = scimprotocol.ParseFilter(filterStr)
+		filter, err = ParseFilter(filterStr)
 		if err != nil {
 			return nil, err
 		}
@@ -79,7 +78,7 @@ func GetListResourceHelper[T scimprotocol.Resource](
 	if err != nil {
 		return false, errors.Wrapf(err, "failed to get all resource (%T) data from db in SCIM", all)
 	}
-	filtered, err := scimprotocol.GetFilteredResources(filter, all)
+	filtered, err := GetFilteredResources(filter, all)
 	if err != nil {
 		return nil, err
 	}
@@ -98,7 +97,7 @@ func GetListResourceHelper[T scimprotocol.Resource](
 		attributes = excludedAttributes
 	}
 
-	return scimprotocol.MarshalWithSelectedAttr(scimprotocol.ListResponse[T]{
+	return MarshalWithSelectedAttr(ListResponse[T]{
 		Resources:    currentPageResources,
 		ItemsPerPage: count,
 		StartIndex:   startIndex,
@@ -108,7 +107,7 @@ func GetListResourceHelper[T scimprotocol.Resource](
 
 // getCurrentPageResources get the resources for current page according to startIndex and count
 // Input: startIndex MUST >= 1, count MUST >= 0
-func getCurrentPageResources[T scimprotocol.Resource](inputResource []T, startIndex, count int) ([]T, error) {
+func getCurrentPageResources[T Resource](inputResource []T, startIndex, count int) ([]T, error) {
 	resultStart := 0
 	resultEnd := len(inputResource)
 
@@ -129,7 +128,7 @@ func getCurrentPageResources[T scimprotocol.Resource](inputResource []T, startIn
 	return inputResource[resultStart:resultEnd], nil
 }
 
-func PatchResourceHelper[T scimprotocol.Resource, IDType string](r *http.Request, resourceID IDType,
+func PatchResourceHelper[T Resource, IDType string](r *http.Request, resourceID IDType,
 	getResourceFromDB func(ctx context.Context, resourceID IDType) (T, error),
 	updateResourceToDB func(ctx context.Context, resourceID IDType, _ T) (T, error),
 ) (nvelope.Response, error) {
@@ -138,7 +137,7 @@ func PatchResourceHelper[T scimprotocol.Resource, IDType string](r *http.Request
 	if err != nil {
 		return nil, scimerror.NewSCIMErr(http.StatusBadRequest, errors.Wrapf(err, "could not get request body"))
 	}
-	patchOps, err := scimprotocol.UnmarshalPatchRequest(b)
+	patchOps, err := UnmarshalPatchRequest(b)
 	if err != nil {
 		return nil, err
 	}
@@ -149,16 +148,16 @@ func PatchResourceHelper[T scimprotocol.Resource, IDType string](r *http.Request
 	}
 	// patch user with ops
 	for _, op := range patchOps {
-		path, err := scimprotocol.ParsePath(op.Path)
+		path, err := ParsePath(op.Path)
 		if err != nil {
 			return nil, err
 		}
-		coreSchema, _, err := scimprotocol.GetSchemaURIFromResource(reflect.TypeOf(resource), nil)
+		coreSchema, _, err := GetSchemaURIFromResource(reflect.TypeOf(resource), nil)
 		if err != nil {
 			return nil, err
 		}
 		pathNode := path.GetNodes(coreSchema)
-		err = scimprotocol.Patch(reflect.ValueOf(&resource).Elem(), pathNode, op.Op, op.Value)
+		err = Patch(reflect.ValueOf(&resource).Elem(), pathNode, op.Op, op.Value)
 		if err != nil {
 			return nil, err
 		}
@@ -167,7 +166,7 @@ func PatchResourceHelper[T scimprotocol.Resource, IDType string](r *http.Request
 	return updateResourceToDB(r.Context(), resourceID, resource)
 }
 
-func CreateResourceHelper[T scimprotocol.Resource](r *http.Request,
+func CreateResourceHelper[T Resource](r *http.Request,
 	createResourceToDB func(_ context.Context, _ T) (T, error),
 ) (nvelope.Response, error) {
 	b, err := io.ReadAll(r.Body)
@@ -175,7 +174,7 @@ func CreateResourceHelper[T scimprotocol.Resource](r *http.Request,
 		return nil, scimerror.NewSCIMErr(http.StatusBadRequest, errors.Wrapf(err, "could not get request body"))
 	}
 	var resource T
-	err = scimprotocol.Unmarshal(b, &resource)
+	err = Unmarshal(b, &resource)
 	if err != nil {
 		return nil, scimerror.NewSCIMErr(http.StatusBadRequest, errors.Wrapf(err, "could not unmarshal scim resource from request (body:%s)", string(b)))
 	}
@@ -186,7 +185,7 @@ func CreateResourceHelper[T scimprotocol.Resource](r *http.Request,
 	return resource, err
 }
 
-func UpdateResourceHelper[T scimprotocol.Resource](r *http.Request, resourceID string,
+func UpdateResourceHelper[T Resource](r *http.Request, resourceID string,
 	updateResourceToDB func(_ context.Context, resourceID string, _ T) (T, error),
 ) (nvelope.Response, error) {
 	b, err := io.ReadAll(r.Body)
@@ -194,23 +193,23 @@ func UpdateResourceHelper[T scimprotocol.Resource](r *http.Request, resourceID s
 		return nil, scimerror.NewSCIMErr(http.StatusBadRequest, errors.Wrapf(err, "could not get request body"))
 	}
 	var resource T
-	err = scimprotocol.Unmarshal(b, &resource)
+	err = Unmarshal(b, &resource)
 	if err != nil {
 		return nil, scimerror.NewSCIMErr(http.StatusBadRequest, errors.Wrapf(err, "could not unmarshal scim resource from request (body:%s)", string(b)))
 	}
 	return updateResourceToDB(r.Context(), resourceID, resource)
 }
 
-func GetSchemasHelper(resourceTypes []scimprotocol.ResourceType, itemsPerPage int) (nvelope.Response, error) {
-	schemas := []scimprotocol.Schema{}
+func GetSchemasHelper(resourceTypes []ResourceType, itemsPerPage int) (nvelope.Response, error) {
+	schemas := []Schema{}
 	for _, rt := range resourceTypes {
-		resourceSchemas, err := scimprotocol.GetResourceSchema(rt.ResourceObjectType)
+		resourceSchemas, err := GetResourceSchema(rt.ResourceObjectType)
 		if err != nil {
 			return nil, err
 		}
 		schemas = append(schemas, resourceSchemas...)
 	}
-	return scimprotocol.ListResponse[scimprotocol.Schema]{
+	return ListResponse[Schema]{
 		StartIndex:   1,
 		ItemsPerPage: itemsPerPage,
 		Resources:    schemas,
