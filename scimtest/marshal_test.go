@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	scimprotocol "github.com/singlestore-labs/scim"
-	"github.com/singlestore-labs/scim/example"
 	"github.com/singlestore-labs/scim/util"
 	"github.com/stretchr/testify/require"
 )
@@ -28,7 +27,7 @@ func TestSCIMMarshalUserWithoutExtension(t *testing.T) {
 
 func TestSCIMUnmarshalUserWithoutExtension(t *testing.T) {
 	t.Parallel()
-	var user example.SCIMUser
+	var user SCIMUser
 	err := scimprotocol.Unmarshal(ExampleUserCoreJSON, &user)
 	require.NoError(t, err)
 	expect := ExampleUserCore
@@ -40,13 +39,13 @@ func TestSCIMUnmarshalUserWithExtension(t *testing.T) {
 	t.Parallel()
 	{
 		t.Log("test unmarshal required")
-		var user example.SCIMUser
+		var user SCIMUser
 		err := scimprotocol.Unmarshal(replaceFieldFromJSON(t, ExampleUserWithExtensionJSON, "userName", nil), &user)
 		require.Error(t, err)
 	}
 	{
 		t.Log("test marshal with extra data")
-		var user example.SCIMUser
+		var user SCIMUser
 		err := scimprotocol.Unmarshal(ExampleFullUserJSON, &user)
 		require.NoError(t, err)
 		expect := ExampleUserWithExtension
@@ -75,7 +74,7 @@ func TestResourceTypeMarhsal(t *testing.T) {
 		ID:                 "User",
 		Name:               "User",
 		Endpoint:           "/User",
-		ResourceObjectType: reflect.TypeOf(example.SCIMUser{}), // no need content
+		ResourceObjectType: reflect.TypeOf(SCIMUser{}), // no need content
 		Meta: scimprotocol.ResourceTypeMeta{
 			Location: "https://example.com/v2/ResourceTypes/User",
 		},

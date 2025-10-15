@@ -7,12 +7,10 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/memsql/ntest"
 	"github.com/muir/nchi"
 	scimprotocol "github.com/singlestore-labs/scim"
-	"github.com/singlestore-labs/scim/example"
 	"github.com/singlestore-labs/scim/util"
 	"github.com/stretchr/testify/require"
 )
@@ -22,11 +20,11 @@ const (
 	scimExampleDomain = "scimexample.com"
 )
 
-var getSCIMRouter = func(t ntest.T, tracer util.Trace, storage *example.Storage) *nchi.Mux {
+var getSCIMRouter = func(t ntest.T, tracer util.Trace, storage *Storage) *nchi.Mux {
 	r := nchi.NewRouter()
 	t.Log("set up server")
-	scimServer := example.NewServer(tracer, storage)
-	scimRouter := example.SCIMRouter(tracer, scimServer)
+	scimServer := NewServer(tracer, storage)
+	scimRouter := scimprotocol.SCIMRouter(tracer, scimServer)
 	// r.Route(testSCIMEndpoint+"/:scimID", scimRouter)
 	r.Route(testSCIMEndpoint, scimRouter)
 	return r
@@ -41,14 +39,10 @@ type DynamicFields struct {
 	Group []any    `json:"groups"`
 	Meta  SCIMMeta `json:"meta"`
 }
-type SCIMMeta struct {
-	Created      time.Time `json:"created"`
-	LastModified time.Time `json:"lastModified"`
-}
 
 func TestSCIMServer(t *testing.T) {
 	ntest.RunTest(t,
-		func() (util.Trace, *example.Storage) { return util.Trace(t), example.NewInMemStorage() },
+		func() (util.Trace, *Storage) { return util.Trace(t), NewInMemStorage() },
 		getSCIMRouter,
 		func(
 			tracer util.Trace,
@@ -56,7 +50,7 @@ func TestSCIMServer(t *testing.T) {
 		) {
 			// scimID := scimConn.SCIMID.String()
 			baseURL := testSCIMEndpoint
-			apiKey := example.DummyToken
+			apiKey := DummyToken
 
 			t.Logf("base url %s", baseURL)
 			t.Log("test post")
@@ -80,14 +74,14 @@ func TestSCIMServer(t *testing.T) {
 
 			t.Log("test get list")
 			// set expect value
-			var createdUser example.SCIMUser
+			var createdUser SCIMUser
 			require.NoError(t, scimprotocol.Unmarshal(createdUserJSON, &createdUser))
 			createdUser.ID = dynamicFields.ID // unmarshal will not unmarshal id
 			createdUser.Meta.Created = dynamicFields.Meta.Created
 			createdUser.Meta.LastModified = dynamicFields.Meta.LastModified
-			createdUser.Groups = []example.Group{}
-			expectListResp := scimprotocol.ListResponse[example.SCIMUser]{
-				Resources:    []example.SCIMUser{createdUser},
+			createdUser.Groups = []Group{}
+			expectListResp := scimprotocol.ListResponse[SCIMUser]{
+				Resources:    []SCIMUser{createdUser},
 				StartIndex:   1,
 				ItemsPerPage: 100,
 				TotalResults: 1,
