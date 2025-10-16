@@ -20,11 +20,30 @@ type SCIMUnmarshaler interface {
 	UnmarshalSCIM([]byte) error
 }
 
-func Marshal(obj any) ([]byte, error) {
-	return MarshalWithSelectedAttr(obj, nil, false)
+type ResourceID interface {
+	SCIMMarshaler
+	SCIMUnmarshaler
+	SCIMCompareValue(op string, stringValue string, azureAdd bool) (bool, error)
 }
 
-func MarshalWithSelectedAttr(obj any, selectedAttr []string, excludeSelected bool) (_ []byte, err error) {
+/*
+switch strings.ToLower(op) {
+		case "pr":
+			return v.IsEmpty(), nil
+		case "eq":
+			if v.IsEmpty() && azureAdd {
+				if !target.CanSet() {
+					return false, errors.Errorf("failed to do azure add patch, cannot set %s (reflect value %s)", targetCharacs.Name, target)
+				}
+				target.Set(reflect.ValueOf(value[1 : len(value)-1]))
+				return true, nil
+			} else {
+				v.Equal()
+			}
+		}
+*/
+
+func Marshal(obj any) (_ []byte, err error) {
 	objV := reflect.ValueOf(obj)
 	objT := objV.Type()
 	if objV.Type().Kind() == reflect.Pointer {
@@ -42,26 +61,25 @@ func MarshalWithSelectedAttr(obj any, selectedAttr []string, excludeSelected boo
 		return obj.([]byte), nil
 	}
 
+	if customizedMarshal, ok := obj.(SCIMMarshaler); ok {
+		return customizedMarshal.MarshalSCIM()
+	} else if resource, ok := obj.(Resource); ok {
+		return ResourceMarshal(resource, nil, false)
+	}
+
 	if objT.Kind() == reflect.Array || objT.Kind() == reflect.Slice {
 		objV := reflect.ValueOf(obj)
 		jsonList := []json.RawMessage{}
 		for i := 0; i < objV.Len(); i++ {
-			j, err := MarshalWithSelectedAttr(objV.Index(i).Interface(), selectedAttr, excludeSelected)
+			j, err := Marshal(objV.Index(i).Interface())
 			if err != nil {
 				return nil, errors.Errorf("cannot marshal slice/array (%s, %+v): %w\n", objV.Type(), obj, err)
 			}
 			jsonList = append(jsonList, j)
 		}
-		result, err := json.Marshal(jsonList)
-		return result, errors.WithStack(err)
+		return json.Marshal(jsonList)
 	}
 
-	// TODO: move this part before array? separate PR
-	if customizedMarshal, ok := obj.(SCIMMarshaler); ok {
-		return customizedMarshal.MarshalSCIM()
-	} else if resource, ok := obj.(Resource); ok {
-		return ResourceMarshal(resource, selectedAttr, excludeSelected)
-	}
 	return nil, errors.Errorf("input object neither 'Resource' nor 'SCIMMarshaler', %T, %+v\n", obj, obj)
 }
 
@@ -104,8 +122,7 @@ func ResourceMarshal(obj Resource, selectAttr []string, excludeSelected bool) ([
 		}
 	}
 	mapField["schemas"] = schemaURIs
-	result, err := json.Marshal(mapField)
-	return result, errors.WithStack(err)
+	return json.Marshal(mapField)
 }
 
 func marshalHelper(objV reflect.Value, coreSchemaURI string, selectAttrs []*Node, exclude bool) (_ any, err error) {
@@ -246,14 +263,14 @@ func Unmarshal(data []byte, obj any) (err error) {
 	}
 	if isPrimarySCIMDataType(objT) {
 		// it's primary type
-		return errors.WithStack(json.Unmarshal(data, obj))
+		return json.Unmarshal(data, obj)
 	}
 
 	if objT.Kind() == reflect.Array || objT.Kind() == reflect.Slice {
 		jsonList := []json.RawMessage{}
 		err := json.Unmarshal(data, &jsonList)
 		if err != nil {
-			return errors.WithStack(err)
+			return err
 		}
 		newSliceV := reflect.New(objT).Elem()
 		for _, j := range jsonList {
@@ -272,7 +289,7 @@ func Unmarshal(data []byte, obj any) (err error) {
 	fieldMap := map[string]json.RawMessage{}
 	err = json.Unmarshal(data, &fieldMap)
 	if err != nil {
-		return errors.WithStack(err)
+		return err
 	}
 	// check schema
 	var coreSchemaURI *string

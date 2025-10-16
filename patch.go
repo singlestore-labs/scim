@@ -54,6 +54,9 @@ func Patch(objV reflect.Value, path *Node, op string, value []byte) error {
 	path = path.Next
 
 	if path == nil {
+		if _, ok := objV.Interface().(ResourceID); ok {
+			return patchOnResourceID(t, objV, op, value)
+		}
 		// goes to the end, patch separate
 		switch t.Kind() {
 		case reflect.Struct:
@@ -185,13 +188,14 @@ func patchOnRoot(objT reflect.Type, objV reflect.Value, patchOp string, patchVal
 	}
 }
 
+// patchOnStruct patch on struct type, in SCIM it should only be complex attribute like email, role ...
 func patchOnStruct(objT reflect.Type, objV reflect.Value, patchOp string, patchValue []byte) error {
 	patchValueStr := string(patchValue)
 	isValueString := len(patchValueStr) > 1 && patchValueStr[0] == '"' && patchValueStr[len(patchValueStr)-1] == '"'
 	if isValueString {
+		// when not specify field, we only allow patch on 'value' field on default for string value
 		sf, characs, err := scimtag.GetSCIMCharacs(objT, "value")
 		if errors.Is(err, scimerror.ErrNotFound) {
-			// when not specify field, we only allow patch on 'value' field on default
 			return errors.Errorf("could not patch complex attribute (%s) with string %s", objT, string(patchValue))
 		}
 		if err != nil {
@@ -225,6 +229,26 @@ func patchOnStruct(objT reflect.Type, objV reflect.Value, patchOp string, patchV
 		objV.Set(reflect.Zero(objT))
 	default:
 		return errors.Errorf("unsupported patch operation %s", patchOp)
+	}
+	return nil
+}
+
+func patchOnResourceID(objT reflect.Type, objV reflect.Value, patchOp string, patchValue []byte) error {
+	if _, ok := objV.Interface().(ResourceID); ok {
+		switch patchOp {
+		case "add", "replace":
+			newObj := reflect.New(objT).Interface()
+			if err := Unmarshal(patchValue, newObj); err != nil {
+				return errors.Wrapf(err, "could not unmarshal patch value (type:%s, data:%s)", objT.Name(), patchValue)
+			}
+			objV.Set(reflect.ValueOf(newObj).Elem())
+		case "remove":
+			objV.Set(reflect.Zero(objT))
+		default:
+			return errors.Errorf("unsupported patch operation %s", patchOp)
+		}
+	} else {
+		return errors.Errorf("cannot patch interface type %s", objT.Name())
 	}
 	return nil
 }
