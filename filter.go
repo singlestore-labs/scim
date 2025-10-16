@@ -111,6 +111,8 @@ func EvalHelper(e Expression, p *Node, objV reflect.Value, scimCharacs *scimtag.
 	}
 }
 
+// CompareValueAddIfAzure compare the target reflect value with input op and value.
+// if azureAdd is true, it will set the target value when op is 'eq'.
 func CompareValueAddIfAzure(target reflect.Value, targetCharacs *scimtag.Characteristics, op string, value string, azureAdd bool) (bool, error) {
 	if op == "" && value == "" {
 		return true, nil // no filter
@@ -120,6 +122,9 @@ func CompareValueAddIfAzure(target reflect.Value, targetCharacs *scimtag.Charact
 	}
 
 	t := target.Type()
+	if v, ok := target.Interface().(ResourceID); ok {
+		return v.SCIMCompareValue(op, value, azureAdd)
+	}
 	switch t.Kind() {
 	case reflect.Array, reflect.Slice:
 		// true if any element matches

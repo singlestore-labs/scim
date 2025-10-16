@@ -3,6 +3,7 @@ package scimtest
 import (
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/singlestore-labs/generic"
 	scimprotocol "github.com/singlestore-labs/scim"
 	"github.com/singlestore-labs/scim/scimtag"
@@ -12,7 +13,9 @@ func init() {
 	scimtag.BuildAllSCIMCharacsCache(SCIMUser{}, SCIMGroup{})
 }
 
-type UserID string
+// type UserID string
+type SCIMID uuid.UUID
+type UserID uuid.UUID
 type TeamID string
 
 type SCIMResource interface {
