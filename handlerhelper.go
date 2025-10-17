@@ -168,7 +168,7 @@ func PatchResourceHelper[T Resource](
 		}
 	}
 	// db upsert user with response
-	return updateResourceToDB(r.Context(), resourceID, scimID, resource)
+	return updateResourceToDB(r.Context(), scimID, resourceID, resource)
 }
 
 func CreateResourceHelper[T Resource](
@@ -207,7 +207,7 @@ func UpdateResourceHelper[T Resource](
 	if err != nil {
 		return nil, scimerror.NewSCIMErr(http.StatusBadRequest, errors.Wrapf(err, "could not unmarshal scim resource from request (body:%s)", string(b)))
 	}
-	return updateResourceToDB(r.Context(), resourceID, scimID, resource)
+	return updateResourceToDB(r.Context(), scimID, resourceID, resource)
 }
 
 func GetSchemasHelper(
