@@ -9,7 +9,7 @@ type Config struct {
 	PatchSupported        bool
 	BulkSupported         bool
 	BulkMaxOperations     int
-	BuilkMaxPlayloadSize  int
+	BulkMaxPayloadSize    int
 	FilterSupported       bool
 	FilterMaxResult       int
 	ChangePassword        bool
@@ -33,7 +33,7 @@ func (r Config) MarshalSCIM(reqURL string) ([]byte, error) {
 		"bulk": map[string]any{
 			"supported":      r.BulkSupported,
 			"maxOperations":  r.BulkMaxOperations,
-			"maxPayloadSize": r.BuilkMaxPlayloadSize,
+			"maxPayloadSize": r.BulkMaxPayloadSize,
 		},
 		"filter": map[string]any{
 			"supported":  r.FilterSupported,
