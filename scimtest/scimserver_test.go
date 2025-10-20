@@ -16,8 +16,7 @@ import (
 )
 
 const (
-	testSCIMEndpoint  = "/testscim"
-	scimExampleDomain = "scimexample.com"
+	testSCIMEndpoint = "/testscim"
 )
 
 var getSCIMRouter = func(t ntest.T, tracer util.Trace, storage *Storage) *nchi.Mux {
@@ -48,7 +47,6 @@ func TestSCIMServer(t *testing.T) {
 			tracer util.Trace,
 			r *nchi.Mux,
 		) {
-			// scimID := scimConn.SCIMID.String()
 			baseURL := testSCIMEndpoint
 			apiKey := DummyToken
 
