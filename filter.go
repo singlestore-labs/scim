@@ -141,17 +141,19 @@ func CompareValueAddIfAzure(target reflect.Value, targetCharacs *scimtag.Charact
 		return false, nil
 	case reflect.String:
 		targetValue := target.String()
-		if !(len(value) > 0 && value[0] == '"' && value[len(value)-1] == '"') {
-			return false, scimerror.NewBadRequestSCIMErr(scimerror.InvalidFilter, errors.Errorf("cannot compare string with non-string on %s with %s", targetCharacs.Name, value))
+		var stringValue string
+		err := json.Unmarshal([]byte(value), &stringValue)
+		if err != nil {
+			return false, scimerror.NewBadRequestSCIMErr(scimerror.InvalidFilter, errors.Errorf("cannot compare string with non-string on %s with %s: %w", targetCharacs.Name, value, err))
 		}
 		if azureAdd && op == "eq" {
 			if !target.CanSet() {
 				return false, errors.Errorf("failed to do azure add patch, cannot set %s (reflect value %s)", targetCharacs.Name, target)
 			}
-			target.Set(reflect.ValueOf(value[1 : len(value)-1]))
+			target.Set(reflect.ValueOf(stringValue))
 			return true, nil
 		}
-		return compareString(targetValue, op, value[1:len(value)-1], targetCharacs.CaseExact)
+		return compareString(targetValue, op, stringValue, targetCharacs.CaseExact)
 	case reflect.Bool:
 		boolValue, err := strconv.ParseBool(value)
 		if err != nil {
@@ -256,15 +258,16 @@ func schemaFilterHelper(coreSchema string, extensions []SchemaExtention, inputVa
 	if coreSchema == "" {
 		return false, nil
 	}
-	if !(len(inputValue) > 0 && inputValue[0] == '"' && inputValue[len(inputValue)-1] == '"') {
-		return false, scimerror.NewBadRequestSCIMErr(scimerror.InvalidFilter, errors.Errorf("cannot compare string with non-string, %s", inputValue))
+	var stringValue string
+	err := json.Unmarshal([]byte(inputValue), &stringValue)
+	if err != nil {
+		return false, scimerror.NewBadRequestSCIMErr(scimerror.InvalidFilter, errors.Errorf("cannot compare string with non-string, %s: %w", inputValue, err))
 	}
-	input := inputValue[1 : len(inputValue)-1]
-	if input == coreSchema {
+	if stringValue == coreSchema {
 		return true, nil
 	}
 	for _, extension := range extensions {
-		if extension.Schema == input {
+		if extension.Schema == stringValue {
 			return true, nil
 		}
 	}
