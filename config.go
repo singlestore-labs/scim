@@ -2,6 +2,8 @@ package scimprotocol
 
 import (
 	"encoding/json"
+
+	"github.com/memsql/errors"
 )
 
 type Config struct {
@@ -21,7 +23,7 @@ type Config struct {
 func (r Config) MarshalSCIM(reqURL string) ([]byte, error) {
 	authJson, err := json.Marshal(r.AuthenticationSchemas)
 	if err != nil {
-		return nil, err
+		return nil, errors.WithStack(err)
 	}
 	outputFormat := map[string]any{
 		"schemas": []string{"urn:ietf:params:scim:schemas:core:2.0:ServiceProviderConfig"},
@@ -56,7 +58,8 @@ func (r Config) MarshalSCIM(reqURL string) ([]byte, error) {
 			"lastModified": "2011-05-13T04:42:34Z",
 		},
 	}
-	return json.Marshal(outputFormat)
+	result, err := json.Marshal(outputFormat)
+	return result, errors.WithStack(err)
 }
 
 type AuthType string

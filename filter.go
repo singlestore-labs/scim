@@ -12,10 +12,10 @@ import (
 	"github.com/singlestore-labs/scim/scimtag"
 )
 
-// EvalHelper is a helper function that evaluate filter expression against to the Object Reflect Value
+// EvalHelper is a function that evaluates filter expressions against refelect.Value objects
 // scimCharacs should be nil when object is not SCIM attribute
 //
-// azureFilterAdd is hacky way to compatible with azure's 'add' patch.
+// azureFilterAdd is hacky way to be compatible with azure's 'add' patch.
 // Following patch should add new email that fit the filter and value.
 // since it's hacky way so currently only support following two, no more complex op.
 //
