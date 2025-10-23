@@ -48,7 +48,8 @@ func Marshal(obj any) (_ []byte, err error) {
 			}
 			jsonList = append(jsonList, j)
 		}
-		return json.Marshal(jsonList)
+		result, err := json.Marshal(jsonList)
+		return result, errors.WithStack(err)
 	}
 
 	if customizedMarshal, ok := obj.(SCIMMarshaler); ok {
@@ -98,7 +99,8 @@ func ResourceMarshal(obj Resource, selectAttr []string, excludeSelected bool) ([
 		}
 	}
 	mapField["schemas"] = schemaURIs
-	return json.Marshal(mapField)
+	result, err := json.Marshal(mapField)
+	return result, errors.WithStack(err)
 }
 
 func marshalHelper(objV reflect.Value, coreSchemaURI string, selectAttrs []*Node, exclude bool) (_ any, err error) {
@@ -239,14 +241,14 @@ func Unmarshal(data []byte, obj any) (err error) {
 	}
 	if isPrimarySCIMDataType(objT) {
 		// it's primary type
-		return json.Unmarshal(data, obj)
+		return errors.WithStack(json.Unmarshal(data, obj))
 	}
 
 	if objT.Kind() == reflect.Array || objT.Kind() == reflect.Slice {
 		jsonList := []json.RawMessage{}
 		err := json.Unmarshal(data, &jsonList)
 		if err != nil {
-			return err
+			return errors.WithStack(err)
 		}
 		newSliceV := reflect.New(objT).Elem()
 		for _, j := range jsonList {
@@ -265,7 +267,7 @@ func Unmarshal(data []byte, obj any) (err error) {
 	fieldMap := map[string]json.RawMessage{}
 	err = json.Unmarshal(data, &fieldMap)
 	if err != nil {
-		return err
+		return errors.WithStack(err)
 	}
 	// check schema
 	var coreSchemaURI *string

@@ -90,7 +90,7 @@ NOTE: Why we need `keepEmpty` while it's not in the RFC standards? Because we ne
 ## Code
 1. [parser](./parser.go) - parse input query contains filter or patch with path.
 2. [filter](./filter.go) - after parse we need evaluate a resource, like a user or a group, to check if it's passes the filter or not.
-3. [patch](./patch.go) - for patch, it needs to walk down the path along with filter to the target value and modifies it.
+3. [patch](./patch.go) - patch needs to walk down the path along with filter to the target value and modifies it.
 4. [marshal](./scimmarshal.go) - marshal and unmarshal SCIM object with characteristics and support features like checking schema, select attributes.
 	- customized SCIM marshal by implementing SCIMMarshaler.
 5. [scim tag](./scimtag/) - include SCIM characteristics and tag cache.

@@ -51,7 +51,7 @@ func GetListResourceHelper[T scimprotocol.Resource](
 	if inputStartIndex != "" {
 		inputStart, err := strconv.Atoi(inputStartIndex)
 		if err != nil {
-			return nil, err
+			return nil, scimerror.NewBadRequestSCIMErr(scimerror.InvalidSyntax, err)
 		}
 		if inputStart > 1 {
 			startIndex = inputStart
@@ -61,7 +61,7 @@ func GetListResourceHelper[T scimprotocol.Resource](
 	if inputCount != "" {
 		inputCount, err := strconv.Atoi(inputCount)
 		if err != nil {
-			return nil, err
+			return nil, scimerror.NewBadRequestSCIMErr(scimerror.InvalidSyntax, err)
 		}
 		if inputCount > 0 {
 			count = inputCount
