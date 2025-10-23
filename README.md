@@ -1,10 +1,8 @@
-[scimprotocol (repo name)] is an impelmentation of SCIM (system for cross domain identity management) RFC 6742/3/4, 
-designed for the client side of SCIM, and receive provision requests from the server side of SCIM (Identity Providers).
-It only implements the SCIM protocol, a full server also needs a data persistence layer and HTTP service routing.  
+SingleStore-Lab/scim is an implementations of SCIM (system for cross domain identity management) RFC6742/RFC6743/RFC6744. It designed for the client side of SCIM, to receive provision requests from the server side of SCIM (Identity Providers).It implements the SCIM protocol with router and server interface. Example usage at /scimtest folder. 
 
 
 ## Usage 
-1. Define SCIM Resource
+1. Define SCIM Resources
 	```go
 	func init() {
 		scimtag.BuildAllSCIMCharacsCache(SCIMUser{}, SCIMGroup{})
@@ -48,22 +46,26 @@ It only implements the SCIM protocol, a full server also needs a data persistenc
 	}
 	```
 	- SCIM resources like User and Group must implement the `Resource` interface (embed `SCIMResourceMarker`).
-	- When defining SCIM resources, the data type of sub-attributes should be unique if they have different SCIM tag contents, you can use type aliases. [Here is Why](./scimtag/cache.go)
-	- Multi-Value attributes, like email, checks duplicate on whole object by default. Optional customized comperation by implement interface `MultiValueElement`.
-	- Define scim tag for scim characteristics
-		- first positions of SCIM tag is name of the attribute, tag attributes seperated by ','.
-		- if boolean then bool or !bool can represent true or false to the variable bool.
-		- if you want empty cannonical values shows in schemas, then use `cannonicalValus= `.
-		- please check out characteristics.go for all the supported tags.
+	- When defining SCIM resources, the type need to be unique. [Here is Why](./scimtag/cache.go)
+	- Multi-Value attributes, like email, checks duplicate on whole object by default. You can customize comparation by implementing interface `MultiValueElement`.
+	- Define scim tags for scim characteristics
+		- First position of SCIM tag is name of the attribute. Tag attributes separated by ','.
+		- `bool` or `!bool` in SCIM tag can represent true or false.
+		- If you want empty canonical values shows in schemas, then use `cannonicalValus= `.
+		- Please check out [characteristics.go](./scimtag/characteristics.go) for all the supported tags.
 
-2. Create SCIM endpoint
-	- Use [scimprotocol (repo name)] to create a http server:
+2. Create SCIM endpoints
+
+	[scimrouter](router.go) is available to use, check [example](./scimtest/scimserver.go) in scimtest folder.
+	
+	You can also create your own router and server with helper function below. 
+	- Use SingleStore-Lab/scim to create a http server:
 		- Use functions in `handlerhelper.go` (Or do something similar) with your persistency later to create a http server
-	- Use `scimmarshal.go` to marshal/unmarshal for the endpoint 
+	- Use `scimmarshal.go` to marshal/unmarshal when the data goes through endpoints 
 
 
 ## Marshal&Unmarshal
-[scimprotocol (repo name)] got it's own [SCIM marshal](scimmarshal.go) with scim tag `scim` and support customization
+SingleStore-Lab/scim got it's own [SCIM marshal](scimmarshal.go) with scim [tag](./scimtag/) `scim` and support customization
 ```
 	type SCIMMarshaler interface {
 		MarshalSCIM() ([]byte, error)
@@ -73,38 +75,33 @@ It only implements the SCIM protocol, a full server also needs a data persistenc
 		UnmarshalSCIM([]byte) error
 	}
 ```
-Attribute Characteristics `returned` controls the marshal
+Attribute [Characteristics](./scimtag/characteristics.go) `returned` controls the marshal
 - returned=default will omit empty
-- returned=keepEmpty will keep empty
+- returned=keepEmpty will return empty values
 - returned=request will must marshal when it's been requested
 - returned=never will never marshal the field even selected
 - returned=always will alway marshal the field even not selected
 
-why we need `keepEmpty` we could just return all supported attributes. But Azure will report error when some attribute not support in Azure, event it's empty. 
-So to increase compatibility, since we are not only support Azure, I added the extra return value.
+Attribute [Characteristics](./scimtag/characteristics.go) `required` and `ignoreUnmarshal` controls the unmarshal
 
-Attribute Characteristics `required` and `ignoreUnmarshal` (used on [SCIMMeta](./exampletest/example_models.go)) controls the unmarshal
+NOTE: Why we need `keepEmpty` while it's not in the RFC standards? Because we need ability to hide some empty attributes while keeping some necessary attributes to support multiple identity providers.
 
 
 ## Code
-This scim protocol implementation got several pieces
 1. [parser](./parser.go) - parse input query contains filter or patch with path.
-2. [filter](./filter.go) - after parse we need evaluate a resource, like a user, to check if it's pass the filter or not.
-3. [patch](./patch.go) - for patch it need walk down the path along with filter to the target value and modify it.
-4. [marshal](./scimmarshal.go) - marshal and unmarshal SCIM object with features like checking schema, select attribute and characteristics.
-	- customized SCIM marshal by implemented SCIMMarshaler.
+2. [filter](./filter.go) - after parse we need evaluate a resource, like a user or a group, to check if it's passes the filter or not.
+3. [patch](./patch.go) - for patch, it needs to walk down the path along with filter to the target value and modifies it.
+4. [marshal](./scimmarshal.go) - marshal and unmarshal SCIM object with characteristics and support features like checking schema, select attributes.
+	- customized SCIM marshal by implementing SCIMMarshaler.
 5. [scim tag](./scimtag/) - include SCIM characteristics and tag cache.
-7. [handlerhelper](handlerhelper.go) - helper functions to easily interact with database/storage layer for those hander functions when build SCIM http server.
+7. [handlerhelper](handlerhelper.go) - helper functions helps easily interact with database/storage layer for those handler functions when building SCIM http server.
 
 ## Azure tweaks
-1. Azure use add patch with filter in the path to add new element for multi-value attributes, 
-	So I did some hacky way to support simple such action. keyword `azureFilterAdd`
-2. Azure put path in value section for patch, like `value: {"name.familyName": "Unua"}`, 
-	so I added support for this one. (it's not very hacky so no special keyword for it)
+Azure uses filter in a patch to add new element for multi-value attributes. Like if non of the element can pass filter then it will add one with the value in the patch. Use `azureFilterAdd` to trigger support adding elements to multi-value attributes with filters.
+
 
 ## Note
-1. For `schemas` since `name` and `description` is optional and not important so I just skip them
-2. test command: `make backend-integration-test BACKEND_TEST="scim/..."`
+This repo does not contains `name` and `description` in `schemas` because they are optional in RFC.
 
 ## Improvement:
 - [ ] IMP-1. support bulk
