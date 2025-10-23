@@ -1,4 +1,4 @@
-package example
+package scimtest
 
 import (
 	"net/http"
@@ -65,15 +65,6 @@ func NewServer(trace util.Trace, storage *Storage) Server {
 	}
 }
 
-type EndpointSCIMIDAndResourceID struct {
-	SCIMID     SCIMID `nvelope:"path,name=scimID"`
-	ResourceID string `nvelope:"path,name=resourceID"`
-}
-
-type EndpointSCIMID struct {
-	SCIMID SCIMID `nvelope:"path,name=scimID"`
-}
-
 func (h Server) Authorization(inner func() error, r *http.Request) error {
 	// check secret
 	secret := r.Header.Get("Authorization")
@@ -95,62 +86,62 @@ func (h Server) GetResourceTypes() []scimprotocol.ResourceType {
 	return h.ResourceTypes
 }
 
-func (h Server) GetResourceHandler(r *http.Request, resourceType scimprotocol.ResourceType, params EndpointSCIMIDAndResourceID) (nvelope.Response, error) {
+func (h Server) GetResourceHandler(r *http.Request, resourceType scimprotocol.ResourceType, params scimprotocol.EndpointSCIMIDAndResourceID) (nvelope.Response, error) {
 	switch resourceType.Endpoint {
 	case "/Users":
-		return GetResourceHelper(r, params.ResourceID, h.storage.GetSCIMUser)
+		return scimprotocol.GetResourceHelper(r, params.ResourceID, h.storage.GetSCIMUser)
 	case "/Groups":
-		return GetResourceHelper(r, params.ResourceID, h.storage.GetSCIMGroup)
+		return scimprotocol.GetResourceHelper(r, params.ResourceID, h.storage.GetSCIMGroup)
 	default:
 		return nil, errors.Errorf("unsupported resource %s", resourceType.Endpoint)
 	}
 }
 
-func (h Server) GetResourceListHandler(r *http.Request, resourceType scimprotocol.ResourceType, params EndpointSCIMID) (nvelope.Response, error) {
+func (h Server) GetResourceListHandler(r *http.Request, resourceType scimprotocol.ResourceType, params scimprotocol.EndpointSCIMID) (nvelope.Response, error) {
 	switch resourceType.Endpoint {
 	case "/Users":
-		return GetListResourceHelper(r, h.trace, h.config.ItemsPerPage, h.storage.GetAllSCIMUser)
+		return scimprotocol.GetListResourceHelper(r, h.trace, h.config.ItemsPerPage, h.storage.GetAllSCIMUser)
 	case "/Groups":
-		return GetListResourceHelper(r, h.trace, h.config.ItemsPerPage, h.storage.GetAllSCIMGroup)
+		return scimprotocol.GetListResourceHelper(r, h.trace, h.config.ItemsPerPage, h.storage.GetAllSCIMGroup)
 	default:
 		return nil, errors.Errorf("unsupported resource %s", resourceType.Endpoint)
 	}
 }
 
-func (h Server) PostResourceHandler(r *http.Request, resourceType scimprotocol.ResourceType, params EndpointSCIMID) (nvelope.Response, error) {
+func (h Server) PostResourceHandler(r *http.Request, resourceType scimprotocol.ResourceType, params scimprotocol.EndpointSCIMID) (nvelope.Response, error) {
 	switch resourceType.Endpoint {
 	case "/Users":
-		return CreateResourceHelper(r, h.storage.CreateSCIMUser)
+		return scimprotocol.CreateResourceHelper(r, h.storage.CreateSCIMUser)
 	case "/Groups":
-		return CreateResourceHelper(r, h.storage.CreateSCIMGroup)
+		return scimprotocol.CreateResourceHelper(r, h.storage.CreateSCIMGroup)
 	default:
 		return nil, errors.Errorf("unsupported resource %s", resourceType.Endpoint)
 	}
 }
 
-func (h Server) UpdateResourceHandler(r *http.Request, resourceType scimprotocol.ResourceType, params EndpointSCIMIDAndResourceID) (nvelope.Response, error) {
+func (h Server) UpdateResourceHandler(r *http.Request, resourceType scimprotocol.ResourceType, params scimprotocol.EndpointSCIMIDAndResourceID) (nvelope.Response, error) {
 	switch resourceType.Endpoint {
 	case "/Users":
-		return UpdateResourceHelper(r, params.ResourceID, h.storage.UpdateSCIMUser)
+		return scimprotocol.UpdateResourceHelper(r, params.ResourceID, h.storage.UpdateSCIMUser)
 	case "/Groups":
-		return UpdateResourceHelper(r, params.ResourceID, h.storage.UpdateSCIMGroup)
+		return scimprotocol.UpdateResourceHelper(r, params.ResourceID, h.storage.UpdateSCIMGroup)
 	default:
 		return nil, errors.Errorf("unsupported resource %s", resourceType.Endpoint)
 	}
 }
 
-func (h Server) PatchResourceHandler(r *http.Request, resourceType scimprotocol.ResourceType, params EndpointSCIMIDAndResourceID) (nvelope.Response, error) {
+func (h Server) PatchResourceHandler(r *http.Request, resourceType scimprotocol.ResourceType, params scimprotocol.EndpointSCIMIDAndResourceID) (nvelope.Response, error) {
 	switch resourceType.Endpoint {
 	case "/Users":
-		return PatchResourceHelper(r, params.ResourceID, h.storage.GetSCIMUser, h.storage.UpdateSCIMUser)
+		return scimprotocol.PatchResourceHelper(r, params.ResourceID, h.storage.GetSCIMUser, h.storage.UpdateSCIMUser)
 	case "/Groups":
-		return PatchResourceHelper(r, params.ResourceID, h.storage.GetSCIMGroup, h.storage.UpdateSCIMGroup)
+		return scimprotocol.PatchResourceHelper(r, params.ResourceID, h.storage.GetSCIMGroup, h.storage.UpdateSCIMGroup)
 	default:
 		return nil, errors.Errorf("unsupported resource %s", resourceType.Endpoint)
 	}
 }
 
-func (h Server) DeleteResourceHandler(r *http.Request, resourceType scimprotocol.ResourceType, params EndpointSCIMIDAndResourceID) (nvelope.Response, error) {
+func (h Server) DeleteResourceHandler(r *http.Request, resourceType scimprotocol.ResourceType, params scimprotocol.EndpointSCIMIDAndResourceID) (nvelope.Response, error) {
 	switch resourceType.Endpoint {
 	case "/Users":
 		return nil, h.storage.DeleteSCIMUser(r.Context(), params.ResourceID)
@@ -170,7 +161,7 @@ func (h Server) GetResourceTypesHandler() (nvelope.Response, error) {
 }
 
 func (h Server) SchemasHandler() (resp nvelope.Response, err error) {
-	return GetSchemasHelper(h.ResourceTypes, h.config.ItemsPerPage)
+	return scimprotocol.GetSchemasHelper(h.ResourceTypes, h.config.ItemsPerPage)
 }
 
 func (h Server) GetServiceProviderConfigHandler(r *http.Request, w http.ResponseWriter) (nvelope.Response, error) {

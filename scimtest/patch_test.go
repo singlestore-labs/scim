@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	scimprotocol "github.com/singlestore-labs/scim"
-	"github.com/singlestore-labs/scim/example"
 	"github.com/stretchr/testify/require"
 )
 
@@ -50,7 +49,7 @@ func TestPatchAdd(t *testing.T) {
 		   `),
 			want: func(err error, msg string) {
 				require.NoError(t, err)
-				expectUser.Emails = append(expectUser.Emails, example.Email{
+				expectUser.Emails = append(expectUser.Emails, Email{
 					Value: "addbabs@jensen.org",
 					Type:  "home",
 				})
@@ -89,7 +88,7 @@ func TestPatchAdd(t *testing.T) {
 			value: []byte(`"addbyFilter@jensen.org"`),
 			want: func(err error, msg string) {
 				require.NoError(t, err)
-				expectUser.Emails = append(expectUser.Emails, example.Email{
+				expectUser.Emails = append(expectUser.Emails, Email{
 					Type:  "other",
 					Value: "addbyFilter@jensen.org",
 				})
@@ -136,7 +135,7 @@ func TestPatchAdd(t *testing.T) {
 			want: func(err error, msg string) {
 				require.NoError(t, err)
 				expectUser.Emails[0].Primary = false
-				expectUser.Emails = append(expectUser.Emails, example.Email{
+				expectUser.Emails = append(expectUser.Emails, Email{
 					Value:   "add4babs@jensen.org",
 					Type:    "home",
 					Primary: true,
@@ -219,7 +218,7 @@ func TestPatchReplace(t *testing.T) {
 		   `),
 			want: func(err error, msg string) {
 				require.NoError(t, err, msg)
-				expectUser.Emails = []example.Email{
+				expectUser.Emails = []Email{
 					{
 						Value: "addbabs@jensen.org",
 						Type:  "home",
@@ -251,7 +250,7 @@ func TestPatchReplace(t *testing.T) {
 				}`),
 			want: func(err error, msg string) {
 				require.NoError(t, err, msg)
-				expectUser.Emails[0] = example.Email{
+				expectUser.Emails[0] = Email{
 					Value: `addAfterFilter@jensen.org`,
 					Type:  "home",
 				}
@@ -277,7 +276,7 @@ func TestPatchReplace(t *testing.T) {
 			}`),
 			want: func(err error, msg string) {
 				require.NoError(t, err, msg)
-				expectUser.Name = example.Name{
+				expectUser.Name = Name{
 					GivenName:  "John",
 					FamilyName: "Doe",
 				}
@@ -299,7 +298,7 @@ func TestPatchReplace(t *testing.T) {
 			}`),
 			want: func(err error, msg string) {
 				require.NoError(t, err, msg)
-				expectUser.Emails = []example.Email{
+				expectUser.Emails = []Email{
 					{
 						Value:   "add4babs@jensen.org",
 						Type:    "home",
@@ -386,7 +385,7 @@ func TestPatchRemove(t *testing.T) {
 			}`),
 			want: func(err error, msg string) {
 				require.NoError(t, err, msg)
-				expectUser.Name = example.Name{}
+				expectUser.Name = Name{}
 				require.Equal(t, expectUser, testUser, err, msg)
 			},
 		},

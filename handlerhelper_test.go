@@ -1,14 +1,13 @@
-package example
+package scimprotocol
 
 import (
 	"testing"
 
-	scimprotocol "github.com/singlestore-labs/scim"
 	"github.com/stretchr/testify/require"
 )
 
 type tNum struct {
-	scimprotocol.SCIMResourceMarker
+	SCIMResourceMarker
 	num int
 }
 

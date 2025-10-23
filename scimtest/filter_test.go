@@ -5,13 +5,12 @@ import (
 	"testing"
 
 	scimprotocol "github.com/singlestore-labs/scim"
-	"github.com/singlestore-labs/scim/example"
 	"github.com/singlestore-labs/scim/scimtag"
 	"github.com/stretchr/testify/require"
 )
 
 func init() {
-	scimtag.BuildAllSCIMCharacsCache(example.SCIMUser{})
+	scimtag.BuildAllSCIMCharacsCache(SCIMUser{})
 }
 
 func TestFilterExpressionEvaluation(t *testing.T) {

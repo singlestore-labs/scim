@@ -1,4 +1,4 @@
-package example
+package scimprotocol
 
 import (
 	"fmt"
@@ -10,7 +10,6 @@ import (
 	"github.com/muir/nchi"
 	"github.com/muir/nject/v2"
 	"github.com/muir/nvelope"
-	scimprotocol "github.com/singlestore-labs/scim"
 	"github.com/singlestore-labs/scim/scimerror"
 	"github.com/singlestore-labs/scim/util"
 )
@@ -48,9 +47,9 @@ func SCIMRouter(tracer util.Trace, server Server) func(*nchi.Mux) {
 		}
 
 		EncodeSCIMJSON := nvelope.MakeResponseEncoder("SCIM",
-			nvelope.WithEncoder("application/scim+json", scimprotocol.Marshal,
+			nvelope.WithEncoder("application/scim+json", Marshal,
 				nvelope.WithEncoderErrorTransform(func(err error) (interface{}, bool) {
-					var sm scimprotocol.SCIMMarshaler
+					var sm SCIMMarshaler
 					if errors.As(err, &sm) {
 						return sm, true
 					}
@@ -59,7 +58,7 @@ func SCIMRouter(tracer util.Trace, server Server) func(*nchi.Mux) {
 			))
 
 		DecodeSCIMJSON := nvelope.GenerateDecoder(
-			nvelope.WithDecoder("application/json", scimprotocol.Unmarshal),
+			nvelope.WithDecoder("application/json", Unmarshal),
 			nvelope.WithDefaultContentType("application/json"),
 			nvelope.WithPathVarsFunction(func(p httprouter.Params) nvelope.RouteVarLookup {
 				return p.ByName
