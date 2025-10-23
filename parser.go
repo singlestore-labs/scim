@@ -47,7 +47,7 @@ type SQLGenerator interface {
 	Generate(Common, bool) (sq.Sqlizer, error)
 }
 
-// Three cases about group of simple expression: not (group) |(group)| group.
+// Three cases about group of simple expression: not (group) | (group) | group.
 //
 // From RFC: https://datatracker.ietf.org/doc/html/rfc7644#section-3.4.2.2
 // Filters MUST be evaluated using the following order of operations, in
