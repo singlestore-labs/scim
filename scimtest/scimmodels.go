@@ -12,7 +12,6 @@ func init() {
 	scimtag.BuildAllSCIMCharacsCache(SCIMUser{}, SCIMGroup{})
 }
 
-type SCIMID string
 type UserID string
 type TeamID string
 
@@ -26,7 +25,7 @@ type SCIMGroupID string
 
 type SCIMUser struct {
 	scimprotocol.SCIMResourceMarker
-	UserID   *UserID
+	UserID   *UserID                                             // non-scim tagged field will not be considered in SCIM related operations like marshal/filter/patch
 	CoreUser `scim:"urn:ietf:params:scim:schemas:core:2.0:User"` // core schema required to be the first field with a scim tag
 	Meta     SCIMMeta                                            `scim:"meta,ignoreUnmarshal,returned=always"`
 }

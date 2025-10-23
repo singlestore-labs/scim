@@ -16,10 +16,11 @@ import (
 
 func GetResourceHelper[T Resource](
 	r *http.Request,
+	scimID string,
 	resourceID string,
-	getResourceData func(ctx context.Context, resourceID string) (T, error),
+	getResourceData func(ctx context.Context, scimID string, resourceID string) (T, error),
 ) (nvelope.Response, error) {
-	data, err := getResourceData(r.Context(), resourceID)
+	data, err := getResourceData(r.Context(), scimID, resourceID)
 	if err != nil {
 		return nil, err
 	}
@@ -37,7 +38,8 @@ func GetListResourceHelper[T Resource](
 	r *http.Request,
 	trace util.Trace,
 	itemsPerPage int,
-	getAllResourceData func(ctx context.Context) ([]T, error),
+	scimID string,
+	getAllResourceData func(ctx context.Context, scimID string) ([]T, error),
 ) (nvelope.Response, error) {
 	startIndex := 1 // default startIndex is 1
 	inputStartIndex := r.URL.Query().Get("startIndex")
@@ -74,7 +76,7 @@ func GetListResourceHelper[T Resource](
 		}
 	}
 
-	all, err := getAllResourceData(r.Context())
+	all, err := getAllResourceData(r.Context(), scimID)
 	if err != nil {
 		return false, errors.Wrapf(err, "failed to get all resource (%T) data from db in SCIM", all)
 	}
@@ -128,9 +130,12 @@ func getCurrentPageResources[T Resource](inputResource []T, startIndex, count in
 	return inputResource[resultStart:resultEnd], nil
 }
 
-func PatchResourceHelper[T Resource, IDType string](r *http.Request, resourceID IDType,
-	getResourceFromDB func(ctx context.Context, resourceID IDType) (T, error),
-	updateResourceToDB func(ctx context.Context, resourceID IDType, _ T) (T, error),
+func PatchResourceHelper[T Resource](
+	r *http.Request,
+	scimID string,
+	resourceID string,
+	getResourceFromDB func(ctx context.Context, scimID string, resourceID string) (T, error),
+	updateResourceToDB func(ctx context.Context, scimID string, resourceID string, _ T) (T, error),
 ) (nvelope.Response, error) {
 	// unmarshal patch operations
 	b, err := io.ReadAll(r.Body)
@@ -142,7 +147,7 @@ func PatchResourceHelper[T Resource, IDType string](r *http.Request, resourceID 
 		return nil, err
 	}
 	// get user
-	resource, err := getResourceFromDB(r.Context(), resourceID)
+	resource, err := getResourceFromDB(r.Context(), scimID, resourceID)
 	if err != nil {
 		return nil, scimerror.NewSCIMErr(http.StatusNotFound, errors.Wrapf(err, "invalid input resource id, %s", resourceID))
 	}
@@ -163,11 +168,13 @@ func PatchResourceHelper[T Resource, IDType string](r *http.Request, resourceID 
 		}
 	}
 	// db upsert user with response
-	return updateResourceToDB(r.Context(), resourceID, resource)
+	return updateResourceToDB(r.Context(), scimID, resourceID, resource)
 }
 
-func CreateResourceHelper[T Resource](r *http.Request,
-	createResourceToDB func(_ context.Context, _ T) (T, error),
+func CreateResourceHelper[T Resource](
+	r *http.Request,
+	scimID string,
+	createResourceToDB func(_ context.Context, scimID string, _ T) (T, error),
 ) (nvelope.Response, error) {
 	b, err := io.ReadAll(r.Body)
 	if err != nil {
@@ -178,15 +185,18 @@ func CreateResourceHelper[T Resource](r *http.Request,
 	if err != nil {
 		return nil, scimerror.NewSCIMErr(http.StatusBadRequest, errors.Wrapf(err, "could not unmarshal scim resource from request (body:%s)", string(b)))
 	}
-	resource, err = createResourceToDB(r.Context(), resource)
+	resource, err = createResourceToDB(r.Context(), scimID, resource)
 	if err == nil {
 		err = scimerror.NoErrorReturning201
 	}
 	return resource, err
 }
 
-func UpdateResourceHelper[T Resource](r *http.Request, resourceID string,
-	updateResourceToDB func(_ context.Context, resourceID string, _ T) (T, error),
+func UpdateResourceHelper[T Resource](
+	r *http.Request,
+	scimID string,
+	resourceID string,
+	updateResourceToDB func(_ context.Context, scimID string, resourceID string, _ T) (T, error),
 ) (nvelope.Response, error) {
 	b, err := io.ReadAll(r.Body)
 	if err != nil {
@@ -197,10 +207,13 @@ func UpdateResourceHelper[T Resource](r *http.Request, resourceID string,
 	if err != nil {
 		return nil, scimerror.NewSCIMErr(http.StatusBadRequest, errors.Wrapf(err, "could not unmarshal scim resource from request (body:%s)", string(b)))
 	}
-	return updateResourceToDB(r.Context(), resourceID, resource)
+	return updateResourceToDB(r.Context(), scimID, resourceID, resource)
 }
 
-func GetSchemasHelper(resourceTypes []ResourceType, itemsPerPage int) (nvelope.Response, error) {
+func GetSchemasHelper(
+	resourceTypes []ResourceType,
+	itemsPerPage int,
+) (nvelope.Response, error) {
 	schemas := []Schema{}
 	for _, rt := range resourceTypes {
 		resourceSchemas, err := GetResourceSchema(rt.ResourceObjectType)
