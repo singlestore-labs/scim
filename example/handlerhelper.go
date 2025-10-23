@@ -2,7 +2,6 @@ package example
 
 import (
 	"context"
-	"encoding/json"
 	"io"
 	"net/http"
 	"reflect"
@@ -19,9 +18,9 @@ import (
 func GetResourceHelper[T scimprotocol.Resource](
 	r *http.Request,
 	resourceID string,
-	getResouceData func(ctx context.Context, resourceID string) (T, error),
+	getResourceData func(ctx context.Context, resourceID string) (T, error),
 ) (nvelope.Response, error) {
-	data, err := getResouceData(r.Context(), resourceID)
+	data, err := getResourceData(r.Context(), resourceID)
 	if err != nil {
 		return nil, err
 	}
@@ -86,43 +85,25 @@ func GetListResourceHelper[T scimprotocol.Resource](
 	}
 	totalResultNum := len(filtered)
 
-	// only return current page data
+	// return current page data
 	currentPageResources, err := getCurrentPageResources(filtered, startIndex, count)
 	if err != nil {
 		return nil, err
 	}
 
-	// clean return data
-	// sqsq TODO make Marshal with attributes and excludedAttributes
+	// select attributes
 	attributes := toStrArray(r.URL.Query().Get("attributes"))
 	excludedAttributes := toStrArray(r.URL.Query().Get("excludedAttributes"))
-	var result []json.RawMessage
-	if len(attributes) > 0 || len(excludedAttributes) > 0 {
-		for _, u := range currentPageResources {
-			if len(excludedAttributes) > 0 {
-				attributes = excludedAttributes
-			}
-			j, err := scimprotocol.ResourceMarshal(u, attributes, len(excludedAttributes) > 0)
-			if err != nil {
-				return nil, err
-			}
-			result = append(result, j)
-		}
-	} else {
-		for _, u := range currentPageResources {
-			j, err := scimprotocol.Marshal(u)
-			if err != nil {
-				return nil, err
-			}
-			result = append(result, j)
-		}
+	if len(excludedAttributes) > 0 {
+		attributes = excludedAttributes
 	}
-	return scimprotocol.ListResponse[json.RawMessage]{
-		Resources:    result,
+
+	return scimprotocol.MarshalWithSelectedAttr(scimprotocol.ListResponse[T]{
+		Resources:    currentPageResources,
 		ItemsPerPage: count,
 		StartIndex:   startIndex,
 		TotalResults: totalResultNum,
-	}, nil
+	}, attributes, len(excludedAttributes) > 0)
 }
 
 // getCurrentPageResources get the resources for current page according to startIndex and count
