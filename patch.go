@@ -260,11 +260,12 @@ func patchOnSlice(objT reflect.Type, objV reflect.Value, patchOp string, patchVa
 func patchOnString(objV reflect.Value, patchOp string, patchValue []byte) error {
 	switch patchOp {
 	case "add", "replace":
-		valueStr := string(patchValue)
-		if !(len(valueStr) > 0 && valueStr[0] == '"' && patchValue[len(valueStr)-1] == '"') {
-			return scimerror.NewBadRequestSCIMErr(scimerror.InvalidValue, errors.Errorf("cannot patch string with non-string, %s", valueStr))
+		var stringValue string
+		err := json.Unmarshal(patchValue, &stringValue)
+		if err != nil {
+			return scimerror.NewBadRequestSCIMErr(scimerror.InvalidValue, errors.Errorf("cannot patch string with non-string, %s: %w", string(patchValue), err))
 		}
-		objV.Set(reflect.ValueOf(valueStr[1 : len(patchValue)-1]))
+		objV.Set(reflect.ValueOf(stringValue))
 	case "remove":
 		objV.Set(reflect.ValueOf(""))
 	default:
