@@ -1,0 +1,239 @@
+package scimprotocol
+
+import (
+	"context"
+	"io"
+	"net/http"
+	"reflect"
+	"strconv"
+	"strings"
+
+	"github.com/memsql/errors"
+	"github.com/muir/nvelope"
+	"github.com/singlestore-labs/scim/scimerror"
+	"github.com/singlestore-labs/scim/util"
+)
+
+func GetResourceHelper[T Resource](
+	r *http.Request,
+	scimID string,
+	resourceID string,
+	getResourceData func(ctx context.Context, scimID string, resourceID string) (T, error),
+) (nvelope.Response, error) {
+	data, err := getResourceData(r.Context(), scimID, resourceID)
+	if err != nil {
+		return nil, err
+	}
+	attributes := toStrArray(r.URL.Query().Get("attributes"))
+	excludedAttributes := toStrArray(r.URL.Query().Get("excludedAttributes"))
+
+	if len(excludedAttributes) > 0 {
+		attributes = excludedAttributes
+	}
+	result, err := ResourceMarshal(data, attributes, len(excludedAttributes) > 0)
+	return result, err
+}
+
+func GetListResourceHelper[T Resource](
+	r *http.Request,
+	trace util.Trace,
+	itemsPerPage int,
+	scimID string,
+	getAllResourceData func(ctx context.Context, scimID string) ([]T, error),
+) (nvelope.Response, error) {
+	startIndex := 1 // default startIndex is 1
+	inputStartIndex := r.URL.Query().Get("startIndex")
+	if inputStartIndex != "" {
+		inputStart, err := strconv.Atoi(inputStartIndex)
+		if err != nil {
+			return nil, scimerror.NewBadRequestSCIMErr(scimerror.InvalidSyntax, errors.Wrapf(err, "invalid input startIndex, %s", inputStartIndex))
+		}
+		if inputStart > 1 {
+			startIndex = inputStart
+		}
+	}
+
+	count := itemsPerPage // default count is itemsPerPage
+	inputCount := r.URL.Query().Get("count")
+	if inputCount != "" {
+		inputCount, err := strconv.Atoi(inputCount)
+		if err != nil {
+			return nil, scimerror.NewBadRequestSCIMErr(scimerror.InvalidSyntax, errors.Wrapf(err, "invalid input count, %s", inputCount))
+		}
+		count = inputCount
+		if count < 0 {
+			count = 0
+		}
+	}
+
+	var filter *OrExpression
+	filterStr := r.URL.Query().Get("filter")
+	if len(filterStr) > 0 {
+		var err error
+		filter, err = ParseFilter(filterStr)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	all, err := getAllResourceData(r.Context(), scimID)
+	if err != nil {
+		return false, errors.Wrapf(err, "failed to get all resource (%T) data from db in SCIM", all)
+	}
+	filtered, err := GetFilteredResources(filter, all)
+	if err != nil {
+		return nil, err
+	}
+	totalResultNum := len(filtered)
+
+	// return current page data
+	currentPageResources, err := getCurrentPageResources(filtered, startIndex, count)
+	if err != nil {
+		return nil, err
+	}
+
+	// select attributes
+	attributes := toStrArray(r.URL.Query().Get("attributes"))
+	excludedAttributes := toStrArray(r.URL.Query().Get("excludedAttributes"))
+	if len(excludedAttributes) > 0 {
+		attributes = excludedAttributes
+	}
+
+	return MarshalWithSelectedAttr(ListResponse[T]{
+		Resources:    currentPageResources,
+		ItemsPerPage: count,
+		StartIndex:   startIndex,
+		TotalResults: totalResultNum,
+	}, attributes, len(excludedAttributes) > 0)
+}
+
+// getCurrentPageResources get the resources for current page according to startIndex and count
+// Input: startIndex MUST >= 1, count MUST >= 0
+func getCurrentPageResources[T Resource](inputResource []T, startIndex, count int) ([]T, error) {
+	resultStart := 0
+	resultEnd := len(inputResource)
+
+	targetStart := startIndex - 1
+	targetEnd := startIndex + count - 1
+	if count == 0 || targetStart > resultEnd {
+		return []T{}, nil
+	}
+
+	if targetStart > 0 {
+		resultStart = targetStart
+	}
+
+	if targetEnd < resultEnd && targetEnd > 0 {
+		resultEnd = targetEnd
+	}
+
+	return inputResource[resultStart:resultEnd], nil
+}
+
+func PatchResourceHelper[T Resource](
+	r *http.Request,
+	scimID string,
+	resourceID string,
+	getResourceFromDB func(ctx context.Context, scimID string, resourceID string) (T, error),
+	updateResourceToDB func(ctx context.Context, scimID string, resourceID string, _ T) (T, error),
+) (nvelope.Response, error) {
+	// unmarshal patch operations
+	b, err := io.ReadAll(r.Body)
+	if err != nil {
+		return nil, scimerror.NewSCIMErr(http.StatusBadRequest, errors.Wrapf(err, "could not get request body"))
+	}
+	patchOps, err := UnmarshalPatchRequest(b)
+	if err != nil {
+		return nil, err
+	}
+	// get user
+	resource, err := getResourceFromDB(r.Context(), scimID, resourceID)
+	if err != nil {
+		return nil, scimerror.NewSCIMErr(http.StatusNotFound, errors.Wrapf(err, "invalid input resource id, %s", resourceID))
+	}
+	// patch user with ops
+	for _, op := range patchOps {
+		path, err := ParsePath(op.Path)
+		if err != nil {
+			return nil, err
+		}
+		coreSchema, _, err := GetSchemaURIFromResource(reflect.TypeOf(resource), nil)
+		if err != nil {
+			return nil, err
+		}
+		pathNode := path.GetNodes(coreSchema)
+		err = Patch(reflect.ValueOf(&resource).Elem(), pathNode, op.Op, op.Value)
+		if err != nil {
+			return nil, err
+		}
+	}
+	// db upsert user with response
+	return updateResourceToDB(r.Context(), scimID, resourceID, resource)
+}
+
+func CreateResourceHelper[T Resource](
+	r *http.Request,
+	scimID string,
+	createResourceToDB func(_ context.Context, scimID string, _ T) (T, error),
+) (nvelope.Response, error) {
+	b, err := io.ReadAll(r.Body)
+	if err != nil {
+		return nil, scimerror.NewSCIMErr(http.StatusBadRequest, errors.Wrapf(err, "could not get request body"))
+	}
+	var resource T
+	err = Unmarshal(b, &resource)
+	if err != nil {
+		return nil, scimerror.NewSCIMErr(http.StatusBadRequest, errors.Wrapf(err, "could not unmarshal scim resource from request (body:%s)", string(b)))
+	}
+	resource, err = createResourceToDB(r.Context(), scimID, resource)
+	if err == nil {
+		err = scimerror.NoErrorReturning201
+	}
+	return resource, err
+}
+
+func UpdateResourceHelper[T Resource](
+	r *http.Request,
+	scimID string,
+	resourceID string,
+	updateResourceToDB func(_ context.Context, scimID string, resourceID string, _ T) (T, error),
+) (nvelope.Response, error) {
+	b, err := io.ReadAll(r.Body)
+	if err != nil {
+		return nil, scimerror.NewSCIMErr(http.StatusBadRequest, errors.Wrapf(err, "could not get request body"))
+	}
+	var resource T
+	err = Unmarshal(b, &resource)
+	if err != nil {
+		return nil, scimerror.NewSCIMErr(http.StatusBadRequest, errors.Wrapf(err, "could not unmarshal scim resource from request (body:%s)", string(b)))
+	}
+	return updateResourceToDB(r.Context(), scimID, resourceID, resource)
+}
+
+func GetSchemasHelper(
+	resourceTypes []ResourceType,
+	itemsPerPage int,
+) (nvelope.Response, error) {
+	schemas := []Schema{}
+	for _, rt := range resourceTypes {
+		resourceSchemas, err := GetResourceSchema(rt.ResourceObjectType)
+		if err != nil {
+			return nil, err
+		}
+		schemas = append(schemas, resourceSchemas...)
+	}
+	return ListResponse[Schema]{
+		StartIndex:   1,
+		ItemsPerPage: itemsPerPage,
+		Resources:    schemas,
+		TotalResults: len(schemas),
+	}, nil
+}
+
+func toStrArray(queryStr string) []string {
+	var attributes []string
+	if queryStr != "" {
+		attributes = strings.Split(queryStr, ",")
+	}
+	return attributes
+}
