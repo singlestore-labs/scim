@@ -43,7 +43,11 @@ switch strings.ToLower(op) {
 		}
 */
 
-func Marshal(obj any) (_ []byte, err error) {
+func Marshal(obj any) ([]byte, error) {
+	return MarshalWithSelectedAttr(obj, nil, false)
+}
+
+func MarshalWithSelectedAttr(obj any, selectedAttr []string, excludeSelected bool) (_ []byte, err error) {
 	objV := reflect.ValueOf(obj)
 	objT := objV.Type()
 	if objV.Type().Kind() == reflect.Pointer {
@@ -61,30 +65,33 @@ func Marshal(obj any) (_ []byte, err error) {
 		return obj.([]byte), nil
 	}
 
-	if customizedMarshal, ok := obj.(SCIMMarshaler); ok {
-		return customizedMarshal.MarshalSCIM()
-	} else if resource, ok := obj.(Resource); ok {
-		return ResourceMarshal(resource, nil, false)
+	resource, customizedMarshal := obj.(SCIMMarshaler)
+	if customizedMarshal {
+		return resource.MarshalSCIM()
 	}
 
 	if objT.Kind() == reflect.Array || objT.Kind() == reflect.Slice {
 		objV := reflect.ValueOf(obj)
 		jsonList := []json.RawMessage{}
 		for i := 0; i < objV.Len(); i++ {
-			j, err := Marshal(objV.Index(i).Interface())
+			j, err := MarshalWithSelectedAttr(objV.Index(i).Interface(), selectedAttr, excludeSelected)
 			if err != nil {
 				return nil, errors.Errorf("cannot marshal slice/array (%s, %+v): %w\n", objV.Type(), obj, err)
 			}
 			jsonList = append(jsonList, j)
 		}
-		return json.Marshal(jsonList)
+		result, err := json.Marshal(jsonList)
+		return result, errors.WithStack(err)
 	}
 
+	if resource, ok := obj.(Resource); ok {
+		return resourceMarshal(resource, selectedAttr, excludeSelected)
+	}
 	return nil, errors.Errorf("input object neither 'Resource' nor 'SCIMMarshaler', %T, %+v\n", obj, obj)
 }
 
-// ResourceMarshal helps marshal resource according to the SCIM attribute characteristics
-func ResourceMarshal(obj Resource, selectAttr []string, excludeSelected bool) ([]byte, error) {
+// resourceMarshal helps marshal resource according to the SCIM attribute characteristics
+func resourceMarshal(obj Resource, selectAttr []string, excludeSelected bool) ([]byte, error) {
 	objV := reflect.ValueOf(obj)
 
 	coreSchema, _, err := GetSchemaURIFromResource(objV.Type(), nil)
@@ -122,7 +129,8 @@ func ResourceMarshal(obj Resource, selectAttr []string, excludeSelected bool) ([
 		}
 	}
 	mapField["schemas"] = schemaURIs
-	return json.Marshal(mapField)
+	result, err := json.Marshal(mapField)
+	return result, errors.WithStack(err)
 }
 
 func marshalHelper(objV reflect.Value, coreSchemaURI string, selectAttrs []*Node, exclude bool) (_ any, err error) {
@@ -263,14 +271,14 @@ func Unmarshal(data []byte, obj any) (err error) {
 	}
 	if isPrimarySCIMDataType(objT) {
 		// it's primary type
-		return json.Unmarshal(data, obj)
+		return errors.WithStack(json.Unmarshal(data, obj))
 	}
 
 	if objT.Kind() == reflect.Array || objT.Kind() == reflect.Slice {
 		jsonList := []json.RawMessage{}
 		err := json.Unmarshal(data, &jsonList)
 		if err != nil {
-			return err
+			return errors.WithStack(err)
 		}
 		newSliceV := reflect.New(objT).Elem()
 		for _, j := range jsonList {
@@ -289,7 +297,7 @@ func Unmarshal(data []byte, obj any) (err error) {
 	fieldMap := map[string]json.RawMessage{}
 	err = json.Unmarshal(data, &fieldMap)
 	if err != nil {
-		return err
+		return errors.WithStack(err)
 	}
 	// check schema
 	var coreSchemaURI *string

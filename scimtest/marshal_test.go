@@ -88,7 +88,7 @@ func TestSCIMSelectMarshalUserWithExtension(t *testing.T) {
 	t.Parallel()
 	testUser := ExampleUserWithExtension
 	attributes := []string{"userName", "name.givenName", "urn:ietf:params:scim:schemas:extension:enterprise:2.0:User:employeeNumber", "emails.value"}
-	userJson, err := scimprotocol.ResourceMarshal(testUser, attributes, false)
+	userJson, err := scimprotocol.MarshalWithSelectedAttr(testUser, attributes, false)
 	require.NoError(t, err)
 	require.Equal(t, string(util.PrettyJSON(t, []byte(`{
         	"emails": [
@@ -118,7 +118,7 @@ func TestSCIMSelectMarshalUserWithoutExtension(t *testing.T) {
 	t.Parallel()
 	testUser := ExampleUserWithExtension
 	attributes := []string{"userName", "name.givenName", "emails.value"}
-	userJson, err := scimprotocol.ResourceMarshal(testUser, attributes, false)
+	userJson, err := scimprotocol.MarshalWithSelectedAttr(testUser, attributes, false)
 	require.NoError(t, err)
 	require.JSONEq(t, string(util.PrettyJSON(t, []byte(`{
 			"id": "2819c223-7f76-453a-919d-413861904646",
@@ -148,7 +148,7 @@ func TestSCIMExcludeSelectMarshalUserWithExtension(t *testing.T) {
 	t.Parallel()
 	testUser := ExampleUserWithExtension
 	attributes := []string{"userName", "name.givenName", "emails.value"}
-	userJson, err := scimprotocol.ResourceMarshal(testUser, attributes, true)
+	userJson, err := scimprotocol.MarshalWithSelectedAttr(testUser, attributes, true)
 	require.NoError(t, err)
 	require.Equal(t, string(util.PrettyJSON(t, []byte(`{
         	"active": true,

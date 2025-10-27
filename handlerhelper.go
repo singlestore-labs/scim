@@ -30,7 +30,7 @@ func GetResourceHelper[T Resource](
 	if len(excludedAttributes) > 0 {
 		attributes = excludedAttributes
 	}
-	result, err := ResourceMarshal(data, attributes, len(excludedAttributes) > 0)
+	result, err := MarshalWithSelectedAttr(data, attributes, len(excludedAttributes) > 0)
 	return result, err
 }
 
