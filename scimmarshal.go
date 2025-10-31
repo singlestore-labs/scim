@@ -359,10 +359,10 @@ func Unmarshal(data []byte, obj any) (err error) {
 // isPrimarySCIMDataType: check if it's Primary data type for SCIM,
 // which means should not do SCIM unmarshal or keep recursive down for SCIM related operation
 func isPrimarySCIMDataType(v reflect.Value) bool {
-	t := v.Type()
 	if _, ok := v.Interface().(PrimaryDataType); ok {
 		return true
 	}
+	t := v.Type()
 	return (t.Kind() != reflect.Struct && t.Kind() != reflect.Array &&
 		t.Kind() != reflect.Slice && t.Kind() != reflect.Map) ||
 		t == reflect.TypeOf(time.Time{}) || t == reflect.TypeOf(uuid.UUID{})
