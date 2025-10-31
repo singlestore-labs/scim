@@ -54,7 +54,7 @@ func Patch(objV reflect.Value, path *Node, op string, value []byte) error {
 	path = path.Next
 
 	if path == nil {
-		if _, ok := objV.Interface().(ResourceID); ok {
+		if _, ok := objV.Interface().(PrimaryDataType); ok {
 			return patchOnResourceID(t, objV, op, value)
 		}
 		// goes to the end, patch separate
@@ -126,6 +126,7 @@ func Patch(objV reflect.Value, path *Node, op string, value []byte) error {
 			newSlice = reflect.Append(newSlice, v)
 		}
 		// for support azure filter add
+		// here is expect to be the only place the turn on the 'azureAdd' logic
 		if !found && op == "add" {
 			newElem := reflect.New(t.Elem()).Elem()
 			pass, err := p.Eval(newElem, true)
@@ -234,7 +235,7 @@ func patchOnStruct(objT reflect.Type, objV reflect.Value, patchOp string, patchV
 }
 
 func patchOnResourceID(objT reflect.Type, objV reflect.Value, patchOp string, patchValue []byte) error {
-	if _, ok := objV.Interface().(ResourceID); ok {
+	if _, ok := objV.Interface().(PrimaryDataType); ok {
 		switch patchOp {
 		case "add", "replace":
 			newObj := reflect.New(objT).Interface()

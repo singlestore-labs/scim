@@ -51,7 +51,7 @@ type CoreUser struct {
 	Entitlements      []Entitlement `scim:"entitlements"`
 	ExternalID        string        `scim:"externalId"`
 	Groups            []Group       `scim:"groups,mutability=readOnly"`
-	ID                string        `scim:"id,returned=always,ignoreUnmarshal"`
+	ID                string        `scim:"id,mutability=readOnly,returned=always,ignoreUnmarshal"`
 	Name              Name          `scim:"name"`
 	PreferredLanguage string        `scim:"preferredLanguage"`
 	Roles             []Role        `scim:"roles"`
@@ -130,7 +130,7 @@ type SCIMGroup struct {
 var _ scimprotocol.Resource = SCIMGroup{}
 
 type CoreGroup struct {
-	ID          string            `scim:"id,returned=always,ignoreUnmarshal"`
+	ID          string            `scim:"id,mutability=readOnly,returned=always,ignoreUnmarshal"`
 	ExternalID  string            `scim:"externalId"`
 	DisplayName string            `scim:"displayName"`
 	Members     []SCIMGroupMember `scim:"members"`

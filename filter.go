@@ -29,6 +29,8 @@ import (
 //		"path": "emails[type eq \"work\"].primary",
 //		"value": true
 //	},
+//
+// the azureFilterAdd should only be turned on in patch processing when op is 'add'.
 func EvalHelper(e Expression, p *Node, objV reflect.Value, scimCharacs *scimtag.Characteristics, azureFilterAdd bool) (bool, error) {
 	if p == nil {
 		return false, errors.Errorf("unexpected error, path linked node should at least have a dummy head")
@@ -122,7 +124,7 @@ func CompareValueAddIfAzure(target reflect.Value, targetCharacs *scimtag.Charact
 	}
 
 	t := target.Type()
-	if v, ok := target.Interface().(ResourceID); ok {
+	if v, ok := target.Interface().(PrimaryDataType); ok {
 		return v.SCIMCompareValue(op, value, azureAdd)
 	}
 	switch t.Kind() {
