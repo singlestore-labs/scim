@@ -12,6 +12,9 @@ import (
 	"github.com/singlestore-labs/scim/scimtag"
 )
 
+// SCIMMarshaler and SCIMUnmarshaler allow customized marshal and unmarshal for SCIM
+// Note: if you choose to have SCIMMarshaler or SCIMUnmarshaler, means you take full control of marshal.
+// And the patch and filter may not work as expected.
 type SCIMMarshaler interface {
 	MarshalSCIM() ([]byte, error)
 }
@@ -20,28 +23,9 @@ type SCIMUnmarshaler interface {
 	UnmarshalSCIM([]byte) error
 }
 
-type ResourceID interface {
-	SCIMMarshaler
-	SCIMUnmarshaler
+type PrimaryDataType interface {
 	SCIMCompareValue(op string, stringValue string, azureAdd bool) (bool, error)
 }
-
-/*
-switch strings.ToLower(op) {
-		case "pr":
-			return v.IsEmpty(), nil
-		case "eq":
-			if v.IsEmpty() && azureAdd {
-				if !target.CanSet() {
-					return false, errors.Errorf("failed to do azure add patch, cannot set %s (reflect value %s)", targetCharacs.Name, target)
-				}
-				target.Set(reflect.ValueOf(value[1 : len(value)-1]))
-				return true, nil
-			} else {
-				v.Equal()
-			}
-		}
-*/
 
 func Marshal(obj any) ([]byte, error) {
 	return MarshalWithSelectedAttr(obj, nil, false)
@@ -133,12 +117,17 @@ func resourceMarshal(obj Resource, selectAttr []string, excludeSelected bool) ([
 	return result, errors.WithStack(err)
 }
 
+// marshalHelper helps marshal recursively
 func marshalHelper(objV reflect.Value, coreSchemaURI string, selectAttrs []*Node, exclude bool) (_ any, err error) {
 	objT := objV.Type()
 	defer func() {
 		err = errors.Wrapf(err, "failed marshal %s (coreSchema:%s, exclude:%t, selectAttrs:%v)", objT, coreSchemaURI, exclude, selectAttrs)
 	}()
-	if isPrimarySCIMDataType(objT) {
+	if !objV.CanInterface() {
+		return nil, errors.Errorf("cannot interface reflect value %s", objV)
+	}
+
+	if isPrimarySCIMDataType(objV) {
 		// when not belongs SCIM data type, do json marshal as default
 		// rfc: https://datatracker.ietf.org/doc/html/rfc7643#section-2.3
 		return objV.Interface(), nil
@@ -269,7 +258,7 @@ func Unmarshal(data []byte, obj any) (err error) {
 	if !objV.CanSet() {
 		return errors.Errorf("failed to do scim unmarshal, input % cannot be set", objT)
 	}
-	if isPrimarySCIMDataType(objT) {
+	if isPrimarySCIMDataType(objV) {
 		// it's primary type
 		return errors.WithStack(json.Unmarshal(data, obj))
 	}
@@ -369,7 +358,11 @@ func Unmarshal(data []byte, obj any) (err error) {
 
 // isPrimarySCIMDataType: check if it's Primary data type for SCIM,
 // which means should not do SCIM unmarshal or keep recursive down for SCIM related operation
-func isPrimarySCIMDataType(t reflect.Type) bool {
+func isPrimarySCIMDataType(v reflect.Value) bool {
+	t := v.Type()
+	if _, ok := v.Interface().(PrimaryDataType); ok {
+		return true
+	}
 	return (t.Kind() != reflect.Struct && t.Kind() != reflect.Array &&
 		t.Kind() != reflect.Slice && t.Kind() != reflect.Map) ||
 		t == reflect.TypeOf(time.Time{}) || t == reflect.TypeOf(uuid.UUID{})

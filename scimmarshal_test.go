@@ -1,9 +1,13 @@
 package scimprotocol_test
 
 import (
+	"encoding/json"
 	"testing"
 
+	"github.com/google/uuid"
+	"github.com/memsql/errors"
 	scimprotocol "github.com/singlestore-labs/scim"
+	"github.com/singlestore-labs/scim/scimerror"
 	"github.com/singlestore-labs/scim/scimtag"
 	"github.com/singlestore-labs/scim/util"
 	"github.com/stretchr/testify/require"
@@ -17,6 +21,47 @@ type TestMarshalObject struct {
 	scimprotocol.SCIMResourceMarker
 	TestUser `scim:"urn:ietf:params:scim:schemas:core:2.0:User"`
 }
+type TestResourceID struct {
+	uuid.UUID
+}
+
+var _ json.Marshaler = TestResourceID{}
+
+func (id TestResourceID) MarshalJSON() ([]byte, error) {
+	return json.Marshal(uuid.UUID(id.UUID))
+}
+
+var _ json.Unmarshaler = (*TestResourceID)(nil)
+
+func (id *TestResourceID) UnmarshalJSON(data []byte) error {
+	var uid uuid.UUID
+	if err := json.Unmarshal(data, &uid); err != nil {
+		return err
+	}
+	*id = TestResourceID{UUID: uid}
+	return nil
+}
+
+var _ scimprotocol.PrimaryDataType = TestResourceID{}
+
+func (id TestResourceID) SCIMCompareValue(op string, stringValue string, azureAdd bool) (bool, error) {
+	if op == "pr" {
+		return id.UUID != uuid.Nil, nil
+	}
+	uid, err := uuid.Parse(stringValue)
+	if err != nil {
+		return false, err
+	}
+	switch op {
+	case "eq":
+		return uuid.UUID(id.UUID) == uid, nil
+	case "ne":
+		return uuid.UUID(id.UUID) != uid, nil
+	default:
+		return false, scimerror.NewBadRequestSCIMErr(scimerror.InvalidFilter, errors.Errorf("not support compare operation %s on 'TestResourceID'", op))
+	}
+}
+
 type TestUser struct {
 	// non-scim field
 	NonSCIM string
@@ -29,8 +74,9 @@ type TestUser struct {
 	ArrayEmpty      []string `scim:"arrayEmpty"`
 	ArrayNil        []string `scim:"arrayNil"`
 	// unmarshal related
-	IgnoreUnmarshal string `scim:"ignoreUnmarshal,ignoreUnmarshal"`
-	RequiredField   string `scim:"requiredField,required"`
+	IgnoreUnmarshal string         `scim:"ignoreUnmarshal,ignoreUnmarshal"`
+	RequiredField   string         `scim:"requiredField,required"`
+	ID              TestResourceID `scim:"id,returned=always"`
 }
 
 var _ scimprotocol.Resource = TestMarshalObject{}
@@ -57,12 +103,14 @@ func TestMarshal(t *testing.T) {
 			// unmarshal related, should no affect
 			IgnoreUnmarshal: "unmarshal related, should no affect",
 			RequiredField:   "",
+			ID:              TestResourceID{UUID: uuid.MustParse("123e4567-e89b-12d3-a456-426614174000")},
 		},
 	}
 
 	expectMarshal := []byte(
 		`{
 			"always":"",
+			"id": "123e4567-e89b-12d3-a456-426614174000",
 			"ignoreUnmarshal":"unmarshal related, should no affect",
 			"keepEmptyReturn": "",
 			"schemas": ["urn:ietf:params:scim:schemas:core:2.0:User"]

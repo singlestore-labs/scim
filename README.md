@@ -65,16 +65,8 @@ SingleStore-Lab/scim is an implementations of SCIM (system for cross domain iden
 
 
 ## Marshal&Unmarshal
-SingleStore-Lab/scim got it's own [SCIM marshal](scimmarshal.go) with scim [tag](./scimtag/) `scim` and support customization
-```
-	type SCIMMarshaler interface {
-		MarshalSCIM() ([]byte, error)
-	}
+SingleStore-Lab/scim got it's own [SCIM marshal](scimmarshal.go) with scim [tag](./scimtag/) `scim`.
 
-	type SCIMUnmarshaler interface {
-		UnmarshalSCIM([]byte) error
-	}
-```
 Attribute [Characteristics](./scimtag/characteristics.go) `returned` controls the marshal
 - returned=default will omit empty
 - returned=keepEmpty will return empty values
@@ -85,6 +77,25 @@ Attribute [Characteristics](./scimtag/characteristics.go) `returned` controls th
 Attribute [Characteristics](./scimtag/characteristics.go) `required` and `ignoreUnmarshal` controls the unmarshal
 
 NOTE: Why we need `keepEmpty` while it's not in the RFC standards? Because we need ability to hide some empty attributes while keeping some necessary attributes to support multiple identity providers.
+
+SingleStore-Lab/scim supports customization marshal, however, if you use SCIMMarshaler/SCIMUnmarshaler, then filter and patch will not works on that resource.
+```
+	type SCIMMarshaler interface {
+		MarshalSCIM() ([]byte, error)
+	}
+
+	type SCIMUnmarshaler interface {
+		UnmarshalSCIM([]byte) error
+	}
+```
+The `PrimaryDataType` interface helps support customized primary data type not in the rfc, like `ID` to support UUID type. [Example: TestMarshalObject](./scimmarshal_test.go) 
+You could also use string for `ID` and convert outside of this Library. 
+```
+type PrimaryDataType interface {
+	SCIMCompareValue(op string, stringValue string, azureAdd bool) (bool, error)
+}
+```
+
 
 
 ## Code
@@ -108,5 +119,4 @@ This repo does not contains `name` and `description` in `schemas` because they a
 - [ ] IMP-2. Improve return 'requested'?
 - [ ] IMP-3. patch on default 'value', like `{path:email, op:add, value:"e@email.com}"`  only support string for now. 
 - [ ] IMP-4. add support for number?
-- [ ] IMP-5. support for UUID as type?
 

@@ -13,7 +13,7 @@ func init() {
 	scimtag.BuildAllSCIMCharacsCache(SCIMUser{})
 }
 
-func TestFilterExpressionEvaluation(t *testing.T) {
+func TestFilterEvaluation(t *testing.T) {
 	t.Parallel()
 	cases := []struct {
 		filter string
@@ -38,43 +38,6 @@ func TestFilterExpressionEvaluation(t *testing.T) {
 		{
 			filter: `emails[type eq "work" and value co "@example1.com"]`,
 			want:   false,
-		},
-	}
-
-	for _, c := range cases {
-		expression, err := scimprotocol.ParseFilter(c.filter)
-		require.NoError(t, err, c.filter)
-
-		v := reflect.ValueOf(ExampleUserCore)
-		result, err := expression.Eval(v, false)
-		require.NoError(t, err, c.filter)
-
-		require.Equal(t, c.want, result, c.filter)
-	}
-}
-
-func TestFilterEvaluation(t *testing.T) {
-	t.Parallel()
-
-	cases := []struct {
-		filter string
-		want   bool
-	}{
-		{
-			filter: `userName eq "bjensen"`,
-			want:   false,
-		},
-		{
-			filter: `userName co "bjensen"`,
-			want:   true,
-		},
-		{
-			filter: `name.familyName co "O'Malley"`,
-			want:   false,
-		},
-		{
-			filter: `emails[type eq "work" and value co "@example.com"]`,
-			want:   true,
 		},
 		{
 			filter: `emails co "example.com" or emails.value co "example.org"`,
