@@ -1,6 +1,7 @@
 package scimprotocol
 
 import (
+	"bytes"
 	"encoding/json"
 	"reflect"
 
@@ -191,10 +192,15 @@ func patchOnRoot(objT reflect.Type, objV reflect.Value, patchOp string, patchVal
 
 // patchOnStruct patch on struct type, in SCIM it should only be complex attribute like email, role ...
 func patchOnStruct(objT reflect.Type, objV reflect.Value, patchOp string, patchValue []byte) error {
-	patchValueStr := string(patchValue)
-	isValueString := len(patchValueStr) > 1 && patchValueStr[0] == '"' && patchValueStr[len(patchValueStr)-1] == '"'
-	if isValueString {
-		// when not specify field, we only allow patch on 'value' field on default for string value
+	isObject := func(data []byte) bool {
+		data = bytes.TrimSpace(data)
+		if len(data) == 0 || data[0] != '{' {
+			return false
+		}
+		return true
+	}
+	if !isObject(patchValue) {
+		// when input is a value and not speficy field, we only allow patch on 'value' field on default for complex attribute
 		sf, characs, err := scimtag.GetSCIMCharacs(objT, "value")
 		if errors.Is(err, scimerror.ErrNotFound) {
 			return errors.Errorf("could not patch complex attribute (%s) with string %s", objT, string(patchValue))
@@ -206,7 +212,15 @@ func patchOnStruct(objT reflect.Type, objV reflect.Value, patchOp string, patchV
 			return scimerror.NewBadRequestSCIMErr(scimerror.MutabilityError, errors.Errorf("cannot patch %s 'value' attribute", characs.Mutability))
 		}
 		fieldV := objV.FieldByIndex(sf.Index)
-		fieldV.Set(reflect.ValueOf(patchValueStr[1 : len(patchValueStr)-1]))
+
+		updatedObj := fieldV.Addr().Interface()
+		if err := Unmarshal(patchValue, updatedObj); err != nil {
+			return errors.Wrapf(err, "could not unmarshal patch value (type:%s,  data:%s)", fieldV.Type(), patchValue)
+		}
+		if !fieldV.CanSet() {
+			return errors.Errorf("input object cannot be set (type:%s)", fieldV.Type())
+		}
+		fieldV.Set(reflect.ValueOf(updatedObj).Elem())
 		return nil
 	}
 

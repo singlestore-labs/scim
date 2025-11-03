@@ -118,6 +118,5 @@ This repo does not contains `name` and `description` in `schemas` because they a
 ## Improvement:
 - [ ] IMP-1. support bulk
 - [ ] IMP-2. Improve return 'requested'?
-- [ ] IMP-3. patch on default 'value', like `{path:email, op:add, value:"e@email.com}"`  only support string for now. 
-- [ ] IMP-4. add support for number?
+- [ ] IMP-3. add support for number?
 
