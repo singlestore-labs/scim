@@ -3,6 +3,7 @@ package scimtest
 import (
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/singlestore-labs/generic"
 	scimprotocol "github.com/singlestore-labs/scim"
 	"github.com/singlestore-labs/scim/scimtag"
@@ -12,15 +13,11 @@ func init() {
 	scimtag.BuildAllSCIMCharacsCache(SCIMUser{}, SCIMGroup{})
 }
 
-type UserID string
-type TeamID string
+type SCIMID uuid.UUID
+type UserID uuid.UUID
+type TeamID uuid.UUIDs
 
-type SCIMResource interface {
-	scimprotocol.Resource
-	Copy() SCIMResource
-}
 type SCIMUserID string
-
 type SCIMGroupID string
 
 type SCIMUser struct {
@@ -48,7 +45,7 @@ type CoreUser struct {
 	Entitlements      []Entitlement `scim:"entitlements"`
 	ExternalID        string        `scim:"externalId"`
 	Groups            []Group       `scim:"groups,mutability=readOnly"`
-	ID                string        `scim:"id,returned=always,ignoreUnmarshal"`
+	ID                string        `scim:"id,mutability=readOnly,returned=always,ignoreUnmarshal"`
 	Name              Name          `scim:"name"`
 	PreferredLanguage string        `scim:"preferredLanguage"`
 	Roles             []Role        `scim:"roles"`
@@ -127,7 +124,7 @@ type SCIMGroup struct {
 var _ scimprotocol.Resource = SCIMGroup{}
 
 type CoreGroup struct {
-	ID          string            `scim:"id,returned=always,ignoreUnmarshal"`
+	ID          string            `scim:"id,mutability=readOnly,returned=always,ignoreUnmarshal"`
 	ExternalID  string            `scim:"externalId"`
 	DisplayName string            `scim:"displayName"`
 	Members     []SCIMGroupMember `scim:"members"`

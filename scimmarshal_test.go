@@ -1,9 +1,13 @@
 package scimprotocol_test
 
 import (
+	"encoding/json"
 	"testing"
 
+	"github.com/google/uuid"
+	"github.com/memsql/errors"
 	scimprotocol "github.com/singlestore-labs/scim"
+	"github.com/singlestore-labs/scim/scimerror"
 	"github.com/singlestore-labs/scim/scimtag"
 	"github.com/singlestore-labs/scim/util"
 	"github.com/stretchr/testify/require"
@@ -17,6 +21,47 @@ type TestMarshalObject struct {
 	scimprotocol.SCIMResourceMarker
 	TestUser `scim:"urn:ietf:params:scim:schemas:core:2.0:User"`
 }
+type TestResourceID struct {
+	uuid.UUID
+}
+
+var _ json.Marshaler = TestResourceID{}
+
+func (id TestResourceID) MarshalJSON() ([]byte, error) {
+	return json.Marshal(uuid.UUID(id.UUID))
+}
+
+var _ json.Unmarshaler = (*TestResourceID)(nil)
+
+func (id *TestResourceID) UnmarshalJSON(data []byte) error {
+	var uid uuid.UUID
+	if err := json.Unmarshal(data, &uid); err != nil {
+		return err
+	}
+	*id = TestResourceID{UUID: uid}
+	return nil
+}
+
+var _ scimprotocol.PrimaryDataType = TestResourceID{}
+
+func (id TestResourceID) SCIMCompareValue(op string, stringValue string, azureAdd bool) (bool, error) {
+	if op == "pr" {
+		return id.UUID != uuid.Nil, nil
+	}
+	uid, err := uuid.Parse(stringValue)
+	if err != nil {
+		return false, err
+	}
+	switch op {
+	case "eq":
+		return uuid.UUID(id.UUID) == uid, nil
+	case "ne":
+		return uuid.UUID(id.UUID) != uid, nil
+	default:
+		return false, scimerror.NewBadRequestSCIMErr(scimerror.InvalidFilter, errors.Errorf("not support compare operation %s on 'TestResourceID'", op))
+	}
+}
+
 type TestUser struct {
 	// non-scim field
 	NonSCIM string
@@ -31,7 +76,21 @@ type TestUser struct {
 	// unmarshal related
 	IgnoreUnmarshal string `scim:"ignoreUnmarshal,ignoreUnmarshal"`
 	RequiredField   string `scim:"requiredField,required"`
+	// special resources
+	ID      TestResourceID `scim:"id,returned=always"`
+	Members []Members      `scim:"members"`
+	Groups  []Groups       `scim:"groups,mutability=readOnly"`
+	Manager Manager        `scim:"manager"`
 }
+
+type ResourceRef struct {
+	Value   TestResourceID `scim:"value"`
+	Display string         `scim:"display"`
+}
+
+type Manager ResourceRef
+type Groups ResourceRef
+type Members ResourceRef
 
 var _ scimprotocol.Resource = TestMarshalObject{}
 
@@ -57,14 +116,30 @@ func TestMarshal(t *testing.T) {
 			// unmarshal related, should no affect
 			IgnoreUnmarshal: "unmarshal related, should no affect",
 			RequiredField:   "",
+			ID:              TestResourceID{UUID: uuid.MustParse("123e4567-e89b-12d3-a456-426614174000")},
+			Members: []Members{
+				{Value: TestResourceID{UUID: uuid.MustParse("223e4567-e89b-12d3-a456-426614174000")}, Display: "member1"}},
+			Manager: Manager{
+				Value: TestResourceID{UUID: uuid.MustParse("323e4567-e89b-12d3-a456-426614174000")},
+			},
 		},
 	}
 
 	expectMarshal := []byte(
 		`{
 			"always":"",
+			"id": "123e4567-e89b-12d3-a456-426614174000",
 			"ignoreUnmarshal":"unmarshal related, should no affect",
 			"keepEmptyReturn": "",
+			"manager": {
+        		"value": "323e4567-e89b-12d3-a456-426614174000"
+        	},
+        	"members": [
+        		{
+        			"display": "member1",
+        			"value": "223e4567-e89b-12d3-a456-426614174000"
+        		}
+        	],
 			"schemas": ["urn:ietf:params:scim:schemas:core:2.0:User"]
 		}`)
 
@@ -88,6 +163,11 @@ func TestUnmarshal(t *testing.T) {
 			// unmarshal related
 			IgnoreUnmarshal: "", // should be ignored
 			RequiredField:   "require value here",
+			Members: []Members{
+				{Value: TestResourceID{UUID: uuid.MustParse("223e4567-e89b-12d3-a456-426614174000")}, Display: "member1"}},
+			Manager: Manager{
+				Value: TestResourceID{UUID: uuid.MustParse("323e4567-e89b-12d3-a456-426614174000")},
+			},
 		},
 	}
 
@@ -100,6 +180,15 @@ func TestUnmarshal(t *testing.T) {
 			"keepEmptyReturn": "",
 			"IgnoreUnmarshal": "should be ignored",
 			"requiredField": "require value here",
+			"manager": {
+        		"value": "323e4567-e89b-12d3-a456-426614174000"
+        	},
+        	"members": [
+        		{
+        			"display": "member1",
+        			"value": "223e4567-e89b-12d3-a456-426614174000"
+        		}
+        	],
 			"schemas": ["urn:ietf:params:scim:schemas:core:2.0:User"]
 		}`)
 

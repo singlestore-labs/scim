@@ -43,7 +43,6 @@ var Lex = lexer.MustSimple([]lexer.SimpleRule{
 // SQLGenerator is a interface used to convert expression to sql with SICM tag
 type SQLGenerator interface {
 	// sq.And, sq.Or, sq.Eq .... returns sq.Sqlizer
-	// sqsq put error in sq.Sqlizer
 	Generate(Common, bool) (sq.Sqlizer, error)
 }
 
@@ -67,8 +66,6 @@ type Expr interface {
 type Common interface {
 	Eval(v reflect.Value, azureAdd bool) (bool, error)
 	String() string
-	// sqsq will save joins func in SQLGenerator, not nice?
-	// sqsq put error in sq.Sqlizer
 	ToSqlizer(sg SQLGenerator, not bool) (sq.Sqlizer, error)
 }
 
@@ -97,6 +94,8 @@ func (oe OrExpression) RedactedString() string {
 	return result
 }
 
+// Eval evaluates the OrExpression against the given reflect.Value v.
+// The azureAdd parameter indicates whether to apply Azure-specific filtering logic. Detail explained in filter.go [EvalHelper].
 func (le OrExpression) Eval(v reflect.Value, azureAdd bool) (bool, error) {
 	value, err := le.Left.Eval(v, azureAdd)
 	if err != nil {
