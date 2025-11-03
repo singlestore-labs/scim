@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestPatchADDOnUUID(t *testing.T) {
+func TestPatchAddOnUUID(t *testing.T) {
 	t.Parallel()
 
 	testUser := TestMarshalObject{
