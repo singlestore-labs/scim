@@ -37,6 +37,26 @@ func TestFilter(t *testing.T) {
 			want:   false,
 			err:    require.Error,
 		},
+		{
+			filter: `members.value eq "223e4567-e89b-12d3-a456-426614174000"`,
+			want:   true,
+			err:    require.NoError,
+		},
+		{
+			filter: `members.value eq "223e4567-e89b-12d3-a456-426614174000" and members.display eq "member1"`,
+			want:   true,
+			err:    require.NoError,
+		},
+		{
+			filter: `manager.value eq "323e4567-e89b-12d3-a456-426614174000"`,
+			want:   true,
+			err:    require.NoError,
+		},
+		{
+			filter: `manager.value ne "323e4567-e89b-12d3-a456-426614174000"`,
+			want:   false,
+			err:    require.NoError,
+		},
 	}
 
 	for _, c := range cases {
@@ -46,6 +66,11 @@ func TestFilter(t *testing.T) {
 		testUser := TestMarshalObject{
 			TestUser: TestUser{
 				ID: TestResourceID{UUID: uuid.MustParse("550e8400-e29b-41d4-a716-446655440000")},
+				Members: []Members{{
+					Value: TestResourceID{UUID: uuid.MustParse("223e4567-e89b-12d3-a456-426614174000")}, Display: "member1"}},
+				Manager: Manager{
+					Value: TestResourceID{UUID: uuid.MustParse("323e4567-e89b-12d3-a456-426614174000")},
+				},
 			},
 		}
 		v := reflect.ValueOf(testUser)

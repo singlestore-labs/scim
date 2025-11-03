@@ -74,10 +74,23 @@ type TestUser struct {
 	ArrayEmpty      []string `scim:"arrayEmpty"`
 	ArrayNil        []string `scim:"arrayNil"`
 	// unmarshal related
-	IgnoreUnmarshal string         `scim:"ignoreUnmarshal,ignoreUnmarshal"`
-	RequiredField   string         `scim:"requiredField,required"`
-	ID              TestResourceID `scim:"id,returned=always"`
+	IgnoreUnmarshal string `scim:"ignoreUnmarshal,ignoreUnmarshal"`
+	RequiredField   string `scim:"requiredField,required"`
+	// special resources
+	ID      TestResourceID `scim:"id,returned=always"`
+	Members []Members      `scim:"members"`
+	Groups  []Groups       `scim:"groups,mutability=readOnly"`
+	Manager Manager        `scim:"manager"`
 }
+
+type ResourceRef struct {
+	Value   TestResourceID `scim:"value"`
+	Display string         `scim:"display"`
+}
+
+type Manager ResourceRef
+type Groups ResourceRef
+type Members ResourceRef
 
 var _ scimprotocol.Resource = TestMarshalObject{}
 
@@ -104,6 +117,11 @@ func TestMarshal(t *testing.T) {
 			IgnoreUnmarshal: "unmarshal related, should no affect",
 			RequiredField:   "",
 			ID:              TestResourceID{UUID: uuid.MustParse("123e4567-e89b-12d3-a456-426614174000")},
+			Members: []Members{
+				{Value: TestResourceID{UUID: uuid.MustParse("223e4567-e89b-12d3-a456-426614174000")}, Display: "member1"}},
+			Manager: Manager{
+				Value: TestResourceID{UUID: uuid.MustParse("323e4567-e89b-12d3-a456-426614174000")},
+			},
 		},
 	}
 
@@ -113,6 +131,15 @@ func TestMarshal(t *testing.T) {
 			"id": "123e4567-e89b-12d3-a456-426614174000",
 			"ignoreUnmarshal":"unmarshal related, should no affect",
 			"keepEmptyReturn": "",
+			"manager": {
+        		"value": "323e4567-e89b-12d3-a456-426614174000"
+        	},
+        	"members": [
+        		{
+        			"display": "member1",
+        			"value": "223e4567-e89b-12d3-a456-426614174000"
+        		}
+        	],
 			"schemas": ["urn:ietf:params:scim:schemas:core:2.0:User"]
 		}`)
 
@@ -136,6 +163,11 @@ func TestUnmarshal(t *testing.T) {
 			// unmarshal related
 			IgnoreUnmarshal: "", // should be ignored
 			RequiredField:   "require value here",
+			Members: []Members{
+				{Value: TestResourceID{UUID: uuid.MustParse("223e4567-e89b-12d3-a456-426614174000")}, Display: "member1"}},
+			Manager: Manager{
+				Value: TestResourceID{UUID: uuid.MustParse("323e4567-e89b-12d3-a456-426614174000")},
+			},
 		},
 	}
 
@@ -148,6 +180,15 @@ func TestUnmarshal(t *testing.T) {
 			"keepEmptyReturn": "",
 			"IgnoreUnmarshal": "should be ignored",
 			"requiredField": "require value here",
+			"manager": {
+        		"value": "323e4567-e89b-12d3-a456-426614174000"
+        	},
+        	"members": [
+        		{
+        			"display": "member1",
+        			"value": "223e4567-e89b-12d3-a456-426614174000"
+        		}
+        	],
 			"schemas": ["urn:ietf:params:scim:schemas:core:2.0:User"]
 		}`)
 
