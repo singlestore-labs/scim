@@ -55,7 +55,7 @@ func Patch(objV reflect.Value, path *Node, op string, value []byte) error {
 
 	if path == nil {
 		if _, ok := objV.Interface().(PrimaryDataType); ok {
-			return patchOnResourceID(t, objV, op, value)
+			return patchOnCustomizedPrimary(t, objV, op, value)
 		}
 		// goes to the end, patch separate
 		switch t.Kind() {
@@ -234,7 +234,7 @@ func patchOnStruct(objT reflect.Type, objV reflect.Value, patchOp string, patchV
 	return nil
 }
 
-func patchOnResourceID(objT reflect.Type, objV reflect.Value, patchOp string, patchValue []byte) error {
+func patchOnCustomizedPrimary(objT reflect.Type, objV reflect.Value, patchOp string, patchValue []byte) error {
 	if _, ok := objV.Interface().(PrimaryDataType); ok {
 		switch patchOp {
 		case "add", "replace":

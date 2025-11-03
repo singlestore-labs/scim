@@ -13,17 +13,11 @@ func init() {
 	scimtag.BuildAllSCIMCharacsCache(SCIMUser{}, SCIMGroup{})
 }
 
-// type UserID string
 type SCIMID uuid.UUID
 type UserID uuid.UUID
-type TeamID string
+type TeamID uuid.UUIDs
 
-type SCIMResource interface {
-	scimprotocol.Resource
-	Copy() SCIMResource
-}
 type SCIMUserID string
-
 type SCIMGroupID string
 
 type SCIMUser struct {

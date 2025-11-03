@@ -89,7 +89,8 @@ SingleStore-Lab/scim supports customization marshal, however, if you use SCIMMar
 	}
 ```
 The `PrimaryDataType` interface helps support customized primary data type not in the rfc, like `ID` to support UUID type. [Example: TestMarshalObject](./scimmarshal_test.go) 
-You could also use string for `ID` and convert outside of this Library. 
+
+You could also use string for `ID` and convert it to your type at outside of this Library. 
 ```
 type PrimaryDataType interface {
 	SCIMCompareValue(op string, stringValue string, azureAdd bool) (bool, error)
