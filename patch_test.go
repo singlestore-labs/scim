@@ -100,5 +100,4 @@ func TestPatchAddOnUUID(t *testing.T) {
 		err = scimprotocol.Patch(v, pathNode, "add", c.value)
 		c.want(err, c.path)
 	}
-
 }

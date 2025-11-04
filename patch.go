@@ -212,7 +212,7 @@ func patchOnStruct(objT reflect.Type, objV reflect.Value, patchOp string, patchV
 			return scimerror.NewBadRequestSCIMErr(scimerror.MutabilityError, errors.Errorf("cannot patch %s 'value' attribute", characs.Mutability))
 		}
 		fieldV := objV.FieldByIndex(sf.Index)
-		if !fieldV.CanAddr() || fieldV.Addr().CanInterface() {
+		if !fieldV.CanAddr() || !fieldV.Addr().CanInterface() {
 			return errors.Errorf("cannot patch field 'value' of complex attribute %s, failed to get field pointer address or interface", objT)
 		}
 		updatedObj := fieldV.Addr().Interface()
@@ -228,7 +228,7 @@ func patchOnStruct(objT reflect.Type, objV reflect.Value, patchOp string, patchV
 
 	switch patchOp {
 	case "add":
-		if !objV.CanAddr() || objV.Addr().CanInterface() {
+		if !objV.CanAddr() || !objV.Addr().CanInterface() {
 			return errors.Errorf("failed to get pointer address or interface from %s", objT)
 		}
 		updatedObj := objV.Addr().Interface()
