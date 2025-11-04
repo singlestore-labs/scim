@@ -1,6 +1,7 @@
 package scimprotocol
 
 import (
+	"bytes"
 	"encoding/json"
 	"reflect"
 
@@ -191,27 +192,42 @@ func patchOnRoot(objT reflect.Type, objV reflect.Value, patchOp string, patchVal
 
 // patchOnStruct patch on struct type, in SCIM it should only be complex attribute like email, role ...
 func patchOnStruct(objT reflect.Type, objV reflect.Value, patchOp string, patchValue []byte) error {
-	patchValueStr := string(patchValue)
-	isValueString := len(patchValueStr) > 1 && patchValueStr[0] == '"' && patchValueStr[len(patchValueStr)-1] == '"'
-	if isValueString {
-		// when not specify field, we only allow patch on 'value' field on default for string value
+	isObject := func(data []byte) bool {
+		data = bytes.TrimSpace(data)
+		if len(data) == 0 || data[0] != '{' {
+			return false
+		}
+		return true
+	}
+
+	getDefaultFieldV := func(objV reflect.Value) (reflect.Value, error) {
+		// when path is a struct without specify the sub-field and input is a non-struct value, we will patch input value on 'value' field by default
 		sf, characs, err := scimtag.GetSCIMCharacs(objT, "value")
 		if errors.Is(err, scimerror.ErrNotFound) {
-			return errors.Errorf("could not patch complex attribute (%s) with string %s", objT, string(patchValue))
+			return objV, errors.Errorf("could not patch complex attribute (%s) with string %s", objT, string(patchValue))
 		}
 		if err != nil {
-			return err
+			return objV, err
 		}
 		if characs.Mutability == scimtag.Immutable || characs.Mutability == scimtag.ReadOnly {
-			return scimerror.NewBadRequestSCIMErr(scimerror.MutabilityError, errors.Errorf("cannot patch %s 'value' attribute", characs.Mutability))
+			return objV, scimerror.NewBadRequestSCIMErr(scimerror.MutabilityError, errors.Errorf("cannot patch %s 'value' attribute", characs.Mutability))
 		}
-		fieldV := objV.FieldByIndex(sf.Index)
-		fieldV.Set(reflect.ValueOf(patchValueStr[1 : len(patchValueStr)-1]))
-		return nil
+		return objV.FieldByIndex(sf.Index), nil
 	}
 
 	switch patchOp {
 	case "add":
+		if !isObject(patchValue) {
+			var err error
+			objV, err = getDefaultFieldV(objV)
+			if err != nil {
+				return errors.Errorf("could not get 'value' field for patch at %s", objT)
+			}
+			objT = objV.Type()
+		}
+		if !objV.CanAddr() || !objV.Addr().CanInterface() {
+			return errors.Errorf("failed to get pointer address or interface from %s", objT)
+		}
 		updatedObj := objV.Addr().Interface()
 		if err := Unmarshal(patchValue, updatedObj); err != nil {
 			return errors.Wrapf(err, "could not unmarshal patch value (type:%s,  data:%s)", objT, patchValue)
@@ -221,11 +237,23 @@ func patchOnStruct(objT reflect.Type, objV reflect.Value, patchOp string, patchV
 		}
 		objV.Set(reflect.ValueOf(updatedObj).Elem())
 	case "replace":
-		newObj := reflect.New(objT).Interface()
-		if err := Unmarshal(patchValue, newObj); err != nil {
+		if !isObject(patchValue) {
+			var err error
+			objV, err = getDefaultFieldV(objV)
+			if err != nil {
+				return errors.Errorf("could not get 'value' field for patch at %s", objT)
+			}
+			objT = objV.Type()
+		}
+		newObj := reflect.New(objT)
+		if !newObj.CanInterface() {
+			return errors.Errorf("failed to get interface from new object, type: %s", objT)
+		}
+		newObjInf := newObj.Interface()
+		if err := Unmarshal(patchValue, newObjInf); err != nil {
 			return errors.Wrapf(err, "could not unmarshal patch value (type:%s, data:%s)", objT, patchValue)
 		}
-		objV.Set(reflect.ValueOf(newObj).Elem())
+		objV.Set(reflect.ValueOf(newObjInf).Elem())
 	case "remove":
 		objV.Set(reflect.Zero(objT))
 	default:

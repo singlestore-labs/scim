@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestPatchOnUUID(t *testing.T) {
+func TestPatchAddOnUUID(t *testing.T) {
 	t.Parallel()
 
 	testUser := TestMarshalObject{
@@ -76,6 +76,15 @@ func TestPatchOnUUID(t *testing.T) {
 				require.Equal(t, expectUser, testUser, msg)
 			},
 		},
+		{
+			path:  "manager",
+			value: []byte(`"550e8400-e29b-41d4-a716-446655440001"`),
+			want: func(err error, msg string) {
+				require.NoError(t, err, msg)
+				expectUser.Manager.Value = TestResourceID{UUID: uuid.MustParse("550e8400-e29b-41d4-a716-446655440001")}
+				require.Equal(t, expectUser, testUser, msg)
+			},
+		},
 	}
 
 	for _, c := range cases {
@@ -91,5 +100,4 @@ func TestPatchOnUUID(t *testing.T) {
 		err = scimprotocol.Patch(v, pathNode, "add", c.value)
 		c.want(err, c.path)
 	}
-
 }
