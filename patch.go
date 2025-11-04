@@ -200,7 +200,7 @@ func patchOnStruct(objT reflect.Type, objV reflect.Value, patchOp string, patchV
 		return true
 	}
 	if !isObject(patchValue) {
-		// when input is a value and not speficy field, we only allow patch on 'value' field on default for complex attribute
+		// when path is a struct without specify the sub-field and input is a non-struct value, we will patch input value on 'value' field by default
 		sf, characs, err := scimtag.GetSCIMCharacs(objT, "value")
 		if errors.Is(err, scimerror.ErrNotFound) {
 			return errors.Errorf("could not patch complex attribute (%s) with string %s", objT, string(patchValue))
@@ -212,7 +212,9 @@ func patchOnStruct(objT reflect.Type, objV reflect.Value, patchOp string, patchV
 			return scimerror.NewBadRequestSCIMErr(scimerror.MutabilityError, errors.Errorf("cannot patch %s 'value' attribute", characs.Mutability))
 		}
 		fieldV := objV.FieldByIndex(sf.Index)
-
+		if !fieldV.CanAddr() || fieldV.Addr().CanInterface() {
+			return errors.Errorf("cannot patch field 'value' of complex attribute %s, failed to get field pointer address or interface", objT)
+		}
 		updatedObj := fieldV.Addr().Interface()
 		if err := Unmarshal(patchValue, updatedObj); err != nil {
 			return errors.Wrapf(err, "could not unmarshal patch value (type:%s,  data:%s)", fieldV.Type(), patchValue)
@@ -226,6 +228,9 @@ func patchOnStruct(objT reflect.Type, objV reflect.Value, patchOp string, patchV
 
 	switch patchOp {
 	case "add":
+		if !objV.CanAddr() || objV.Addr().CanInterface() {
+			return errors.Errorf("failed to get pointer address or interface from %s", objT)
+		}
 		updatedObj := objV.Addr().Interface()
 		if err := Unmarshal(patchValue, updatedObj); err != nil {
 			return errors.Wrapf(err, "could not unmarshal patch value (type:%s,  data:%s)", objT, patchValue)
@@ -235,11 +240,15 @@ func patchOnStruct(objT reflect.Type, objV reflect.Value, patchOp string, patchV
 		}
 		objV.Set(reflect.ValueOf(updatedObj).Elem())
 	case "replace":
-		newObj := reflect.New(objT).Interface()
-		if err := Unmarshal(patchValue, newObj); err != nil {
+		newObj := reflect.New(objT)
+		if !newObj.CanInterface() {
+			return errors.Errorf("failed to get interface from new object, type: %s", objT)
+		}
+		newObjInf := newObj.Interface()
+		if err := Unmarshal(patchValue, newObjInf); err != nil {
 			return errors.Wrapf(err, "could not unmarshal patch value (type:%s, data:%s)", objT, patchValue)
 		}
-		objV.Set(reflect.ValueOf(newObj).Elem())
+		objV.Set(reflect.ValueOf(newObjInf).Elem())
 	case "remove":
 		objV.Set(reflect.Zero(objT))
 	default:
