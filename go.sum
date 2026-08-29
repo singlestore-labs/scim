@@ -50,8 +50,8 @@ github.com/mattn/go-colorable v0.0.10-0.20170816031813-ad5389df28cd/go.mod h1:9v
 github.com/mattn/go-isatty v0.0.2/go.mod h1:M+lRXTBqGeGNdLjl/ufCoiOlB5xdOkqRJdNxMWT7Zi4=
 github.com/memsql/errors v0.2.0 h1:n1KKG0TRC0cqUmdropM9ygMDXbGORIN4HmbqU3y3SbM=
 github.com/memsql/errors v0.2.0/go.mod h1:82DslK+/CPzNprzYkjXk70ZHzzGCESIyv9PfH/hYcaQ=
-github.com/memsql/ntest v0.8.0 h1:kKZp7jlKyjXJd2H9F7dI0vFyxe3fwuP2Of2niuKCtYg=
-github.com/memsql/ntest v0.8.0/go.mod h1:fRs4x6iD67RsQMra7lH2086F8Oi38WWkmNAo6B66T7s=
+github.com/memsql/ntest v0.9.0 h1:Rw6LjFTlUDyyxkYWTWY17lJ/0dQV1G+w4M6qc+U4hGA=
+github.com/memsql/ntest v0.9.0/go.mod h1:IR2YmpvE9ldHkljoKuX9QtJBF0uGkTApuoPP/n66Rqg=
 github.com/mitchellh/mapstructure v0.0.0-20170523030023-d0303fe80992/go.mod h1:FVVH3fgwuzCH5S8UJGiWEs2h04kUh9fWfEaFds41c1Y=
 github.com/muir/nape v0.3.0 h1:uyMN6e6CTrXEW+d4GLHxSKMbzRPXftQ6E/Xsbj7GPdE=
 github.com/muir/nape v0.3.0/go.mod h1:FLrt2rma+xEj7vQE1YZSBMuuj61YHrJKzVJWOnjwczY=
