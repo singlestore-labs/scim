@@ -7,7 +7,7 @@ import (
 )
 
 type Config struct {
-	ItemsPerPage          int
+	DefaultPageSize       int
 	PatchSupported        bool
 	BulkSupported         bool
 	BulkMaxOperations     int

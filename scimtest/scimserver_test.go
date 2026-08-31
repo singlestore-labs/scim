@@ -78,11 +78,12 @@ func TestSCIMServer(t *testing.T) {
 			createdUser.Meta.Created = dynamicFields.Meta.Created
 			createdUser.Meta.LastModified = dynamicFields.Meta.LastModified
 			createdUser.Groups = []Group{}
+			expectResources := []SCIMUser{createdUser}
 			expectListResp := scimprotocol.ListResponse[SCIMUser]{
-				Resources:    []SCIMUser{createdUser},
+				Resources:    expectResources,
 				StartIndex:   1,
-				ItemsPerPage: 100,
-				TotalResults: 1,
+				ItemsPerPage: len(expectResources),
+				TotalResults: len(expectResources),
 			}
 			expectJson, err := expectListResp.MarshalSCIM()
 			require.NoError(t, err)

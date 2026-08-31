@@ -40,7 +40,7 @@ func NewServer(trace util.Trace, storage *Storage) Server {
 			},
 		},
 		config: scimprotocol.Config{
-			ItemsPerPage:       100,
+			DefaultPageSize:   100,
 			PatchSupported:     true,
 			BulkSupported:      false,
 			BulkMaxOperations:  1000,
@@ -100,9 +100,9 @@ func (h Server) GetResourceHandler(r *http.Request, resourceType scimprotocol.Re
 func (h Server) GetResourceListHandler(r *http.Request, resourceType scimprotocol.ResourceType, params scimprotocol.EndpointSCIMID) (nvelope.Response, error) {
 	switch resourceType.Endpoint {
 	case "/Users":
-		return scimprotocol.GetListResourceHelper(r, h.trace, h.config.ItemsPerPage, params.SCIMID, h.storage.GetAllSCIMUser)
+		return scimprotocol.GetListResourceHelper(r, h.trace, h.config.DefaultPageSize, params.SCIMID, h.storage.GetAllSCIMUser)
 	case "/Groups":
-		return scimprotocol.GetListResourceHelper(r, h.trace, h.config.ItemsPerPage, params.SCIMID, h.storage.GetAllSCIMGroup)
+		return scimprotocol.GetListResourceHelper(r, h.trace, h.config.DefaultPageSize, params.SCIMID, h.storage.GetAllSCIMGroup)
 	default:
 		return nil, errors.Errorf("unsupported resource %s", resourceType.Endpoint)
 	}
@@ -161,7 +161,7 @@ func (h Server) GetResourceTypesHandler() (nvelope.Response, error) {
 }
 
 func (h Server) SchemasHandler() (resp nvelope.Response, err error) {
-	return scimprotocol.GetSchemasHelper(h.ResourceTypes, h.config.ItemsPerPage)
+	return scimprotocol.GetSchemasHelper(h.ResourceTypes)
 }
 
 func (h Server) GetServiceProviderConfigHandler(r *http.Request, w http.ResponseWriter) (nvelope.Response, error) {

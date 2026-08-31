@@ -9,15 +9,15 @@ import (
 func TestServiceProviderConfig(t *testing.T) {
 	t.Parallel()
 	c := Config{
-		PatchSupported:     true,
-		BulkSupported:      false,
-		BulkMaxOperations:  1000,
+		PatchSupported:       true,
+		BulkSupported:        false,
+		BulkMaxOperations:    1000,
 		BulkMaxPayloadSize: 1048576,
-		FilterSupported:    true,
-		FilterMaxResult:    200,
-		ChangePassword:     false,
-		SortSupported:      false,
-		EtagSupported:      false,
+		FilterSupported:      true,
+		FilterMaxResult:      200,
+		ChangePassword:       false,
+		SortSupported:        false,
+		EtagSupported:        false,
 		AuthenticationSchemas: []AuthenticationScheme{
 			{
 				Name:             "OAuth Bearer Token",

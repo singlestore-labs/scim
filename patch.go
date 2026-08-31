@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"reflect"
+	"strings"
 
 	"github.com/memsql/errors"
 	"github.com/singlestore-labs/scim/scimerror"
@@ -27,6 +28,12 @@ func UnmarshalPatchRequest(data []byte) ([]PatchOperation, error) {
 	}
 	if len(patchReqeust.Schemas) != 1 || patchReqeust.Schemas[0] != "urn:ietf:params:scim:api:messages:2.0:PatchOp" {
 		return nil, scimerror.NewBadRequestSCIMErr(scimerror.InvalidSyntax, errors.Errorf("invalid patch schema, %v", patchReqeust.Schemas))
+	}
+	// Per RFC 7644 section 3.5.2, the PATCH "op" value is case-insensitive
+	// (e.g. "Add", "ADD" and "add" are all valid). Normalize it to lowercase
+	// so downstream comparisons can rely on a canonical form.
+	for i := range patchReqeust.Operations {
+		patchReqeust.Operations[i].Op = strings.ToLower(patchReqeust.Operations[i].Op)
 	}
 	return patchReqeust.Operations, nil
 }
