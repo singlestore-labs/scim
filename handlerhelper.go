@@ -37,7 +37,7 @@ func GetResourceHelper[T Resource](
 func GetListResourceHelper[T Resource](
 	r *http.Request,
 	trace util.Trace,
-	itemsPerPage int,
+	defaultPageSize int,
 	scimID string,
 	getAllResourceData func(ctx context.Context, scimID string) ([]T, error),
 ) (nvelope.Response, error) {
@@ -53,7 +53,7 @@ func GetListResourceHelper[T Resource](
 		}
 	}
 
-	count := itemsPerPage // default count is itemsPerPage
+	count := defaultPageSize // default count
 	inputCount := r.URL.Query().Get("count")
 	if inputCount != "" {
 		inputCount, err := strconv.Atoi(inputCount)
@@ -101,7 +101,7 @@ func GetListResourceHelper[T Resource](
 
 	return MarshalWithSelectedAttr(ListResponse[T]{
 		Resources:    currentPageResources,
-		ItemsPerPage: count,
+		ItemsPerPage: len(currentPageResources),
 		StartIndex:   startIndex,
 		TotalResults: totalResultNum,
 	}, attributes, len(excludedAttributes) > 0)
@@ -210,10 +210,7 @@ func UpdateResourceHelper[T Resource](
 	return updateResourceToDB(r.Context(), scimID, resourceID, resource)
 }
 
-func GetSchemasHelper(
-	resourceTypes []ResourceType,
-	itemsPerPage int,
-) (nvelope.Response, error) {
+func GetSchemasHelper(resourceTypes []ResourceType) (nvelope.Response, error) {
 	schemas := []Schema{}
 	for _, rt := range resourceTypes {
 		resourceSchemas, err := GetResourceSchema(rt.ResourceObjectType)
@@ -224,7 +221,7 @@ func GetSchemasHelper(
 	}
 	return ListResponse[Schema]{
 		StartIndex:   1,
-		ItemsPerPage: itemsPerPage,
+		ItemsPerPage: len(schemas),
 		Resources:    schemas,
 		TotalResults: len(schemas),
 	}, nil

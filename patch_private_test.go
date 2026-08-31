@@ -19,6 +19,29 @@ type email struct {
 	Primary bool   `scim:"primary,returned=always"`
 }
 
+func TestPatchOnStringOpCaseInsensitive(t *testing.T) {
+	t.Parallel()
+
+	// "Add" (capitalized) coming from the request must behave the same as "add"
+	// after UnmarshalPatchRequest normalizes the op. Patch itself relies on the
+	// normalized lowercase form.
+	body := `{
+		"schemas": ["urn:ietf:params:scim:api:messages:2.0:PatchOp"],
+		"Operations": [
+			{"op": "Add", "path": "value", "value": "new-value"}
+		]
+	}`
+
+	ops, err := UnmarshalPatchRequest([]byte(body))
+	require.NoError(t, err)
+	require.Len(t, ops, 1)
+
+	target := "old-value"
+	err = patchOnString(reflect.ValueOf(&target).Elem(), ops[0].Op, []byte(`"new-value"`))
+	require.NoError(t, err)
+	require.Equal(t, "new-value", target)
+}
+
 func TestAppendMultivalueAttr(t *testing.T) {
 	t.Parallel()
 

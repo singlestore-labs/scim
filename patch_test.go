@@ -9,6 +9,42 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestUnmarshalPatchRequestOpCaseInsensitive(t *testing.T) {
+	t.Parallel()
+
+	// Per RFC 7644 section 3.5.2, the PATCH "op" value is case-insensitive.
+	// Verify that mixed/upper case ops are normalized to lowercase.
+	cases := []struct {
+		name     string
+		inputOp  string
+		expected string
+	}{
+		{name: "capitalized add", inputOp: "Add", expected: "add"},
+		{name: "upper add", inputOp: "ADD", expected: "add"},
+		{name: "lower add", inputOp: "add", expected: "add"},
+		{name: "capitalized replace", inputOp: "Replace", expected: "replace"},
+		{name: "mixed remove", inputOp: "ReMoVe", expected: "remove"},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			body := `{
+				"schemas": ["urn:ietf:params:scim:api:messages:2.0:PatchOp"],
+				"Operations": [
+					{"op": "` + tc.inputOp + `", "path": "displayName", "value": "test"}
+				]
+			}`
+
+			ops, err := scimprotocol.UnmarshalPatchRequest([]byte(body))
+			require.NoError(t, err)
+			require.Len(t, ops, 1)
+			require.Equal(t, tc.expected, ops[0].Op)
+		})
+	}
+}
+
 func TestPatchAddOnUUID(t *testing.T) {
 	t.Parallel()
 
