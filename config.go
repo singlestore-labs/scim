@@ -3,7 +3,7 @@ package scimprotocol
 import (
 	"encoding/json"
 
-	"github.com/pkg/errors"
+	"github.com/memsql/errors"
 )
 
 type Config struct {

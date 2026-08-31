@@ -6,8 +6,8 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/memsql/errors"
 	"github.com/muir/reflectutils"
-	"github.com/pkg/errors"
 	"github.com/singlestore-labs/scim/scimerror"
 	"github.com/singlestore-labs/scim/scimtag"
 )
