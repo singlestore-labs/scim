@@ -57,7 +57,7 @@ func (r ResourceType) MarshalSCIM() ([]byte, error) {
 type ListResponse[T any] struct {
 	Resources    []T
 	StartIndex   int
-	ItemsPerPage int
+	ItemsPerPage int // return actual items number per page
 	TotalResults int
 }
 

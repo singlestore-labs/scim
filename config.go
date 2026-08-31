@@ -3,11 +3,11 @@ package scimprotocol
 import (
 	"encoding/json"
 
-	"github.com/memsql/errors"
+	"github.com/pkg/errors"
 )
 
 type Config struct {
-	ItemsPerPage          int
+	DefaultPageSize       int
 	PatchSupported        bool
 	BulkSupported         bool
 	BulkMaxOperations     int
