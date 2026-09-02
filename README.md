@@ -1,4 +1,6 @@
-SingleStore-Lab/scim is an implementations of SCIM (system for cross domain identity management) RFC6742/RFC6743/RFC6744. It designed to receive SCIM provision requests which typically is from identity providers. It implements the SCIM protocol with router and server interface. Example usage at `/scimtest` folder. 
+SingleStore-Lab/scim is an implementations of SCIM (system for cross domain identity management) RFC6742/RFC6743/RFC6744. It designed to receive SCIM provision requests which typically is from identity providers. It implements the SCIM protocol with router and server interface. Example usage at `/scimtest` folder.
+
+> Attention: The code in this repository is intended for experimental use only and is not fully tested, documented, or supported by SingleStore. Visit the SingleStore Forums to ask questions about this repository. 
 
 
 ## Usage 

@@ -1,0 +1,7 @@
+business_justification: >
+  This repository is an implementation of the SCIM protocol (RFC 7643/7644)
+  for receiving identity-provider provisioning requests. It is a reusable
+  library with example usage under scimtest and contains no proprietary
+  SingleStore product information, credentials, or internal infrastructure.
+license: MIT
+primary_contact: suqin-haha
