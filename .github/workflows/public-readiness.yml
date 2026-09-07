@@ -11,4 +11,8 @@ permissions:
 jobs:
   readiness:
     uses: singlestore/securitytesting/.github/workflows/public-readiness.yml@main
+    with:
+      # Match the org Security-Scans.yml allowlist so common permissive
+      # Go licenses (BSD, ISC) are not reported as violations.
+      allowed_licenses: HPND,NCSA,0BSD,BSD-3-Clause,BSD-2-Clause,Python-2.0,Apache-2.0,MIT,ISC,Unlicense,CC0-1.0,WTFPL,BlueOak-1.0.0,Zlib,UNKNOWN
     secrets: inherit
