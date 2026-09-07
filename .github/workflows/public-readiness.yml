@@ -1,10 +1,7 @@
-# Caller for the shared public-readiness scan.
-# Hub: https://memsql.atlassian.net/wiki/spaces/~712020c7e5bed2d4d44a6b901975e841e7f735/pages/4436033543
-# Guide: https://memsql.atlassian.net/wiki/spaces/~712020c7e5bed2d4d44a6b901975e841e7f735/pages/4435542023
+# .github/workflows/public-readiness.yml
 on:
   pull_request:
     paths: ['.github/public-release-request.yml']
-  workflow_dispatch:
 permissions:
   contents: read
   pull-requests: write
