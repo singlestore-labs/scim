@@ -2,9 +2,16 @@ module github.com/singlestore-labs/scim
 
 go 1.24.2
 
-require github.com/memsql/errors v0.2.0
+require (
+	github.com/memsql/errors v0.2.0
+	github.com/tidwall/gjson v1.19.0
+)
 
-require go.yaml.in/yaml/v3 v3.0.5 // indirect
+require (
+	github.com/tidwall/match v1.1.1 // indirect
+	github.com/tidwall/pretty v1.2.0 // indirect
+	go.yaml.in/yaml/v3 v3.0.5 // indirect
+)
 
 require (
 	github.com/golang/gddo v0.0.0-20210115222349-20d68f94ee1f // indirect

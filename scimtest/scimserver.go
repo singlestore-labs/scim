@@ -40,7 +40,7 @@ func NewServer(trace util.Trace, storage *Storage) Server {
 			},
 		},
 		config: scimprotocol.Config{
-			DefaultPageSize:   100,
+			DefaultPageSize:    100,
 			PatchSupported:     true,
 			BulkSupported:      false,
 			BulkMaxOperations:  1000,
@@ -73,11 +73,12 @@ func (h Server) Authorization(inner func() error, r *http.Request) error {
 	}
 	parts := strings.Split(secret, " ")
 	if parts[0] != "Bearer" || len(parts) != 2 {
-		return scimerror.NewSCIMErr(http.StatusForbidden, errors.Errorf("Authorization header in (%s %s) request is not a Bearer token", r.Method, r.URL))
+		// Okta SCIM 2.0 SPEC requires 401 (not 403) for a malformed token.
+		return scimerror.NewSCIMErr(http.StatusUnauthorized, errors.Errorf("Authorization header in (%s %s) request is not a Bearer token", r.Method, r.URL))
 	}
 	secretWOPrefix := parts[1]
 	if DummyToken != secretWOPrefix {
-		return scimerror.NewSCIMErr(http.StatusForbidden, errors.Errorf("invalid SCIM API key"))
+		return scimerror.NewSCIMErr(http.StatusUnauthorized, errors.Errorf("invalid SCIM API key"))
 	}
 	return inner()
 }
