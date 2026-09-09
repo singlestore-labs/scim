@@ -6,12 +6,12 @@ import (
 )
 
 type Resource interface { // like User and Group
-	private()
+	isSCIMResource()
 }
 
 type SCIMResourceMarker struct{}
 
-func (SCIMResourceMarker) private() {}
+func (SCIMResourceMarker) isSCIMResource() {}
 
 type MultiValueElement interface {
 	isEqual(input MultiValueElement) bool
