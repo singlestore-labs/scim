@@ -15,7 +15,9 @@ func TestRunnerExecutesRequestAssertionsAndExtractions(t *testing.T) {
 			t.Errorf("filter = %q", got)
 		}
 		w.Header().Set("Content-Type", "application/json")
-		fmt.Fprint(w, `{"totalResults":1,"Resources":[{"id":"user-1"}]}`)
+		if _, err := fmt.Fprint(w, `{"totalResults":1,"Resources":[{"id":"user-1"}]}`); err != nil {
+			t.Errorf("write response: %v", err)
+		}
 	}))
 	defer server.Close()
 

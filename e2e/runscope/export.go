@@ -75,7 +75,7 @@ func Load(r io.Reader) (Suite, error) {
 		return Suite{}, fmt.Errorf("decode Runscope export: %w", err)
 	}
 	if len(suite.Steps) == 0 {
-		return Suite{}, fmt.Errorf("Runscope export %q has no steps", suite.Name)
+		return Suite{}, fmt.Errorf("runscope export %q has no steps", suite.Name)
 	}
 	return suite, nil
 }
@@ -153,7 +153,7 @@ func (r Runner) runRequest(ctx context.Context, client *http.Client, step Step, 
 	if err != nil {
 		return fmt.Errorf("%s %s: %w", step.Method, url, err)
 	}
-	defer response.Body.Close()
+	defer func() { _ = response.Body.Close() }()
 	responseBody, err := io.ReadAll(response.Body)
 	if err != nil {
 		return fmt.Errorf("read response: %w", err)

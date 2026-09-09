@@ -30,7 +30,7 @@ func TestOktaSCIM20Spec(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		defer file.Close()
+		defer func() { _ = file.Close() }()
 		suiteInput = file
 	}
 	suite, err := runscope.Load(suiteInput)
