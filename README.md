@@ -112,6 +112,9 @@ type PrimaryDataType interface {
 5. [scim tag](./scimtag/) - include SCIM characteristics and tag cache.
 7. [handlerhelper](handlerhelper.go) - helper functions helps easily interact with database/storage layer for those handler functions when building SCIM http server.
 
+## Azure tweaks
+Azure uses filter in a patch to add new element for multi-value attributes. Like if non of the element can pass filter then it will add one with the value in the patch. Use `azureFilterAdd` to trigger support adding elements to multi-value attributes with filters.
+
 ## Okta SCIM compatibility test
 
 The end-to-end test replays Okta's official
@@ -143,9 +146,6 @@ The reusable executor in `e2e/runscope` supports request and pause steps,
 variable substitution and extraction, and the assertion types used by Okta's
 current export. Unsupported future step, assertion, or script types fail with
 an explicit error instead of being silently ignored.
-
-## Azure tweaks
-Azure uses filter in a patch to add new element for multi-value attributes. Like if non of the element can pass filter then it will add one with the value in the patch. Use `azureFilterAdd` to trigger support adding elements to multi-value attributes with filters.
 
 
 ## Note

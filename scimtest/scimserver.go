@@ -73,7 +73,6 @@ func (h Server) Authorization(inner func() error, r *http.Request) error {
 	}
 	parts := strings.Split(secret, " ")
 	if parts[0] != "Bearer" || len(parts) != 2 {
-		// Okta SCIM 2.0 SPEC requires 401 (not 403) for a malformed token.
 		return scimerror.NewSCIMErr(http.StatusUnauthorized, errors.Errorf("Authorization header in (%s %s) request is not a Bearer token", r.Method, r.URL))
 	}
 	secretWOPrefix := parts[1]
