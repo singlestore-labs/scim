@@ -6,6 +6,9 @@ on:
     branches: [main]
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   keyv-worm-scan:
     runs-on: ubuntu-latest
@@ -19,11 +22,11 @@ jobs:
           python-version: "3.13"
 
       - name: Scan for keyv / Shai-Hulud Aug 2026 worm
-        uses: singlestore/securitytesting/.github/actions/keyv-worm-scan@main
+        uses: singlestore/securitytesting/.github/actions/keyv-worm-scan@7511298eff6c4cd09002db9267c323cc5689d7f3
         with:
           fail-on-findings: "true"
 
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         if: always()
         with:
           name: keyv-worm-scan-report
