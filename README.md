@@ -1,4 +1,8 @@
-SingleStore-Lab/scim is an implementations of SCIM (system for cross domain identity management) RFC6742/RFC6743/RFC6744. It designed to receive SCIM provision requests which typically is from identity providers. It implements the SCIM protocol with router and server interface. Example usage at `/scimtest` folder. 
+[![Go Reference](https://pkg.go.dev/badge/github.com/singlestore-labs/scim.svg)](https://pkg.go.dev/github.com/singlestore-labs/scim)
+
+SingleStore-Lab/scim is an implementations of SCIM (system for cross domain identity management) RFC6742/RFC6743/RFC6744. It designed to receive SCIM provision requests which typically is from identity providers. It implements the SCIM protocol with router and server interface. Example usage at `/scimtest` folder.
+
+API documentation: [pkg.go.dev/github.com/singlestore-labs/scim](https://pkg.go.dev/github.com/singlestore-labs/scim). 
 
 
 ## Usage 
