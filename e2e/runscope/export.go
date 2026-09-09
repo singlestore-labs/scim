@@ -306,7 +306,11 @@ func normalizeURL(input string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("parse URL: %w", err)
 	}
-	parsed.RawQuery = parsed.Query().Encode()
+	query, err := url.ParseQuery(parsed.RawQuery)
+	if err != nil {
+		return "", fmt.Errorf("parse URL query: %w", err)
+	}
+	parsed.RawQuery = query.Encode()
 	return parsed.String(), nil
 }
 

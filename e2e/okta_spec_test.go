@@ -3,6 +3,7 @@ package e2e
 import (
 	"context"
 	_ "embed"
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -62,6 +63,15 @@ func TestOktaSCIM20Spec(t *testing.T) {
 	}
 	variables["randomUsername"] = variables["randomEmail"]
 	variables["randomUsernameCaps"] = strings.ToUpper(variables["randomUsername"])
+	if input := os.Getenv("RUNSCOPE_VARIABLES"); input != "" {
+		var overrides map[string]string
+		if err := json.Unmarshal([]byte(input), &overrides); err != nil {
+			t.Fatalf("parse RUNSCOPE_VARIABLES: %v", err)
+		}
+		for name, value := range overrides {
+			variables[name] = value
+		}
+	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()

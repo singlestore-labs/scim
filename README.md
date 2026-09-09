@@ -129,10 +129,15 @@ different server:
 
 ```sh
 RUNSCOPE_SUITE=/path/to/export.json \
+RUNSCOPE_VARIABLES='{"newVariable":"value"}' \
 SCIM_BASE_URL=http://127.0.0.1:18080/scim/v2 \
 SCIM_AUTH='Bearer dummyToken' \
 go test ./e2e -run TestOktaSCIM20Spec -v
 ```
+
+`RUNSCOPE_VARIABLES` is optional and overrides the built-in Okta initial
+variables. This allows another export to provide additional placeholders
+without changing the runner.
 
 The reusable executor in `e2e/runscope` supports request and pause steps,
 variable substitution and extraction, and the assertion types used by Okta's
