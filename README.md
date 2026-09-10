@@ -1,11 +1,32 @@
 [![Go Reference](https://pkg.go.dev/badge/github.com/singlestore-labs/scim.svg)](https://pkg.go.dev/github.com/singlestore-labs/scim)
 
-SingleStore-Lab/scim is an implementations of SCIM (system for cross domain identity management) RFC6742/RFC6743/RFC6744. It designed to receive SCIM provision requests which typically is from identity providers. It implements the SCIM protocol with router and server interface. Example usage at `/scimtest` folder.
+# SingleStore-Lab/scim — SCIM 2.0 library for Go
 
-API documentation: [pkg.go.dev/github.com/singlestore-labs/scim](https://pkg.go.dev/github.com/singlestore-labs/scim). 
+A Go (Golang) library for building a **SCIM 2.0** server that receives identity **provisioning** requests from identity providers (IdPs) such as **Microsoft Entra ID (Azure AD)** and **Okta**.
 
+SCIM is the **System for Cross-domain Identity Management**. This package implements the SCIM protocol and core schema so you can expose User and Group endpoints, parse filters and PATCH paths, and marshal SCIM JSON.
 
-## Usage 
+- **RFC 7642** — SCIM definitions, overview, and requirements
+- **RFC 7643** — SCIM core schema (User, Group, schemas, resource types)
+- **RFC 7644** — SCIM protocol (HTTP API, filter, PATCH, pagination, attribute selection)
+
+Import: `github.com/singlestore-labs/scim`  
+Package: `scimprotocol`  
+API docs: [pkg.go.dev/github.com/singlestore-labs/scim](https://pkg.go.dev/github.com/singlestore-labs/scim)
+
+A working in-memory SCIM HTTP server is in [`scimtest`](./scimtest).
+
+## Features
+
+- SCIM 2.0 **Users** and **Groups** (and other resource types you define)
+- HTTP router for SCIM endpoints (`/Users`, `/Groups`, `/Schemas`, `/ResourceTypes`, `/ServiceProviderConfig`)
+- Filter parser and evaluation (`userName eq "bjensen"`, nested multi-value filters)
+- PATCH add / remove / replace, including Azure-style filter-add on multi-value attributes
+- SCIM marshal / unmarshal via `scim` struct tags (returned, required, mutability, canonical values)
+- Handler helpers that sit in front of your own database or storage layer
+
+## Usage
+
 1. Define SCIM Resources
 	```go
 	func init() {
@@ -63,13 +84,13 @@ API documentation: [pkg.go.dev/github.com/singlestore-labs/scim](https://pkg.go.
 	[scimrouter](router.go) is available to use, check [example](./scimtest/scimserver.go) in scimtest folder.
 	
 	You can also create your own router and server with helper function below. 
-	- Use SingleStore-Lab/scim to create a http server:
-		- Use functions in `handlerhelper.go` (Or do something similar) with your persistency later to create a http server
+	- Use this library to create a HTTP server:
+		- Use functions in `handlerhelper.go` (or do something similar) with your persistency layer to create a HTTP server
 	- Use `scimmarshal.go` to marshal/unmarshal when the data goes through endpoints 
 
 
 ## Marshal&Unmarshal
-SingleStore-Lab/scim got it's own [SCIM marshal](scimmarshal.go) with scim [tag](./scimtag/) `scim`.
+This library has its own [SCIM marshal](scimmarshal.go) with scim [tag](./scimtag/) `scim`.
 
 Attribute [Characteristics](./scimtag/characteristics.go) `returned` controls the marshal
 - returned=default will omit empty
@@ -82,7 +103,7 @@ Attribute [Characteristics](./scimtag/characteristics.go) `required` and `ignore
 
 NOTE: Why we need `keepEmpty` while it's not in the RFC standards? Because we need ability to hide some empty attributes while keeping some necessary attributes to support multiple identity providers.
 
-SingleStore-Lab/scim supports customization marshal, however, if you use SCIMMarshaler/SCIMUnmarshaler, then filter and patch will not works on that resource.
+This library supports customization marshal, however, if you use SCIMMarshaler/SCIMUnmarshaler, then filter and patch will not works on that resource.
 ```
 	type SCIMMarshaler interface {
 		MarshalSCIM() ([]byte, error)
@@ -123,4 +144,3 @@ This repo does not contains `name` and `description` in `schemas` because they a
 - [ ] IMP-1. support bulk
 - [ ] IMP-2. Improve return 'requested'?
 - [ ] IMP-3. add support for number?
-
