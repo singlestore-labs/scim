@@ -129,6 +129,16 @@ func TestUserPagination(t *testing.T) {
 	})
 }
 
+func TestInvalidFilterReturnsSCIMError(t *testing.T) {
+	t.Parallel()
+
+	harness := NewHarness(t)
+	result := harness.ListUsers(ListOpts{Filter: `userName eq`})
+
+	scimError := harness.RequireError(result, http.StatusBadRequest, "invalidFilter")
+	require.NotEmpty(t, scimError.Detail)
+}
+
 func TestRawCreateBodyAndDelete(t *testing.T) {
 	t.Parallel()
 
