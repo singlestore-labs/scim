@@ -15,6 +15,7 @@ Package: `scimprotocol`
 API docs: [pkg.go.dev/github.com/singlestore-labs/scim](https://pkg.go.dev/github.com/singlestore-labs/scim)
 
 The library does not include persistence. To use it, you must supply a persistence layer meeting the API.
+
 A working in-memory SCIM HTTP server is in [`scimtest`](./scimtest).
 
 ## Features
@@ -159,8 +160,3 @@ Azure uses filter in a patch to add new element for multi-value attributes. Like
 
 ## Note
 This repo does not contains `name` and `description` in `schemas` because they are optional in RFC.
-
-## Improvement:
-- [ ] IMP-1. support bulk
-- [ ] IMP-2. Improve return 'requested'?
-- [ ] IMP-3. add support for number?
