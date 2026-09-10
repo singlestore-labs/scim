@@ -4,7 +4,7 @@
 
 A Go (Golang) library for building a **SCIM 2.0** server that receives identity **provisioning** requests from identity providers (IdPs) such as **Microsoft Entra ID (Azure AD)** and **Okta**.
 
-SCIM is the **System for Cross-domain Identity Management**. This package implements the SCIM protocol and core schema so you can expose User and Group endpoints, parse filters and PATCH paths, and marshal SCIM JSON.
+SCIM is the **System for Cross-domain Identity Management**. This package implements the SCIM protocol and core schema so you can expose User and Group endpoints, parse filters and PATCH paths, and marshal SCIM JSON. Attribute behavior follows **RFC 7643 SCIM characteristics** declared as `scim` struct tags.
 
 - **RFC 7642** — SCIM definitions, overview, and requirements
 - **RFC 7643** — SCIM core schema (User, Group, schemas, resource types)
@@ -18,12 +18,33 @@ A working in-memory SCIM HTTP server is in [`scimtest`](./scimtest).
 
 ## Features
 
+- **SCIM characteristics** (RFC 7643 §7): `required`, `caseExact`, `mutability`, `returned`, `uniqueness`, `canonicalValues`...
 - SCIM 2.0 **Users** and **Groups** (and other resource types you define)
 - HTTP router for SCIM endpoints (`/Users`, `/Groups`, `/Schemas`, `/ResourceTypes`, `/ServiceProviderConfig`)
 - Filter parser and evaluation (`userName eq "bjensen"`, nested multi-value filters)
 - PATCH add / remove / replace, including Azure-style filter-add on multi-value attributes
-- SCIM marshal / unmarshal via `scim` struct tags (returned, required, mutability, canonical values)
+- SCIM marshal / unmarshal driven by SCIM characteristics (`scim` struct tags)
 - Handler helpers that sit in front of your own database or storage layer
+
+## SCIM characteristics
+
+[RFC 7643 §7](https://datatracker.ietf.org/doc/html/rfc7643#section-7) attribute characteristics are declared on every field with a `scim` tag. They control marshal, unmarshal, filter, PATCH, and `/Schemas` output. See [`scimtag/characteristics.go`](./scimtag/characteristics.go).
+
+Example: `` `scim:"userName,returned=always,required"` ``
+
+| Characteristic | Tag | Values (default) | Used for |
+| --- | --- | --- | --- |
+| name | first tag token | attribute name (required) | JSON name, filter/PATCH path, schemas |
+| required | `required` / `!required` | bool (`false`) | unmarshal validation |
+| caseExact | `caseExact` / `!caseExact` | bool (`false`) | filter comparison |
+| mutability | `mutability=` | `readWrite` (default), `readOnly`, `immutable`, `writeOnly` | PATCH / update |
+| returned | `returned=` | `default` (omit empty), `keepEmpty`, `always`, `never`, `request` | marshal / `attributes=` selection |
+| uniqueness | `uniqueness=` | `none` (default), `server`, `global` | schemas |
+| canonicalValues | `canonicalValues=` | space-separated list | schemas (e.g. email `type`) |
+| referenceTypes | `referenceTypes=` | space-separated list | schemas (e.g. `$ref`) |
+| ignoreUnmarshal | `ignoreUnmarshal` | bool (`false`) | skip unmarshal (`id`, `meta`) |
+
+`returned=keepEmpty` is an extension (emitted as `default` in schemas) so some attributes can stay visible while others omit empty values — useful for Azure AD / Entra ID and other IdPs.
 
 ## Usage
 
@@ -73,11 +94,11 @@ A working in-memory SCIM HTTP server is in [`scimtest`](./scimtest).
 	- SCIM resources like User and Group must implement the `Resource` interface (embed `SCIMResourceMarker`).
 	- When defining SCIM resources, the type need to be unique. [Here is Why](./scimtag/cache.go)
 	- Multi-Value attributes, like email, checks duplicate on whole object by default. You can customize comparation by implementing interface `MultiValueElement`.
-	- Define scim tags for scim characteristics
-		- First position of SCIM tag is name of the attribute. Tag attributes separated by ','.
-		- `bool` or `!bool` in SCIM tag can represent true or false.
-		- If you want empty canonical values shows in schemas, then use `cannonicalValus= `.
-		- Please check out [characteristics.go](./scimtag/characteristics.go) for all the supported tags.
+	- Define `scim` tags for [SCIM characteristics](#scim-characteristics)
+		- First position of the tag is the attribute name. Characteristics are separated by `,`.
+		- `bool` or `!bool` in the tag is true or false (`required`, `caseExact`, `ignoreUnmarshal`).
+		- Empty canonical values in schemas: `canonicalValues= `.
+		- Characteristics must be set on nested structs as well (see `SCIMMeta` above).
 
 2. Create SCIM endpoints
 
@@ -90,18 +111,16 @@ A working in-memory SCIM HTTP server is in [`scimtest`](./scimtest).
 
 
 ## Marshal&Unmarshal
-This library has its own [SCIM marshal](scimmarshal.go) with scim [tag](./scimtag/) `scim`.
+This library has its own [SCIM marshal](scimmarshal.go) with scim [tag](./scimtag/) `scim`. Marshal and unmarshal follow [SCIM characteristics](#scim-characteristics).
 
-Attribute [Characteristics](./scimtag/characteristics.go) `returned` controls the marshal
-- returned=default will omit empty
-- returned=keepEmpty will return empty values
-- returned=request will must marshal when it's been requested
-- returned=never will never marshal the field even selected
-- returned=always will alway marshal the field even not selected
+`returned` controls marshal:
+- `returned=default` omit empty
+- `returned=keepEmpty` include empty values
+- `returned=request` marshal only when selected
+- `returned=never` never marshal, even if selected
+- `returned=always` always marshal, even if not selected
 
-Attribute [Characteristics](./scimtag/characteristics.go) `required` and `ignoreUnmarshal` controls the unmarshal
-
-NOTE: Why we need `keepEmpty` while it's not in the RFC standards? Because we need ability to hide some empty attributes while keeping some necessary attributes to support multiple identity providers.
+`required` and `ignoreUnmarshal` control unmarshal.
 
 This library supports customization marshal, however, if you use SCIMMarshaler/SCIMUnmarshaler, then filter and patch will not works on that resource.
 ```
