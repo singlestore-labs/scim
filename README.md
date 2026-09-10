@@ -14,6 +14,7 @@ Import: `github.com/singlestore-labs/scim`
 Package: `scimprotocol`  
 API docs: [pkg.go.dev/github.com/singlestore-labs/scim](https://pkg.go.dev/github.com/singlestore-labs/scim)
 
+The library does not include persistence. To use it, you must supply a persistence layer meeting the API.
 A working in-memory SCIM HTTP server is in [`scimtest`](./scimtest).
 
 ## Features
