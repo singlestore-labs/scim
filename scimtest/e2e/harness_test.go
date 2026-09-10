@@ -52,6 +52,7 @@ func NewHarness(t *testing.T) *Harness {
 
 // Result preserves the HTTP response for negative and protocol-level assertions.
 type Result struct {
+	t      *testing.T
 	Status int
 	Header http.Header
 	Body   []byte
@@ -227,35 +228,32 @@ func (h *Harness) GetResourceTypes() Result {
 
 func (h *Harness) MustCreateUser(body any) User {
 	h.t.Helper()
-	result := h.CreateUser(body)
-	require.Equal(h.t, http.StatusCreated, result.Status, result.String())
-	user := decode[User](h.t, result)
+	result := h.CreateUser(body).RequireStatus(http.StatusCreated)
+	user := result.User()
 	require.NotEmpty(h.t, user.ID, result.String())
 	return user
 }
 
 func (h *Harness) MustGetUser(id string) User {
 	h.t.Helper()
-	result := h.GetUser(id)
-	require.Equal(h.t, http.StatusOK, result.Status, result.String())
-	return decode[User](h.t, result)
+	return h.GetUser(id).RequireStatus(http.StatusOK).User()
 }
 
 func (h *Harness) MustListUsers(opts ListOpts) UserList {
 	h.t.Helper()
-	result := h.ListUsers(opts)
-	require.Equal(h.t, http.StatusOK, result.Status, result.String())
-	list := decode[UserList](h.t, result)
-	require.Contains(h.t, list.Schemas, "urn:ietf:params:scim:api:messages:2.0:ListResponse")
+	list := h.ListUsers(opts).
+		RequireStatus(http.StatusOK).
+		RequireJSONContains(map[string]any{
+			"schemas": []any{"urn:ietf:params:scim:api:messages:2.0:ListResponse"},
+		}).
+		UserList()
 	require.Len(h.t, list.Resources, list.ItemsPerPage)
 	return list
 }
 
 func (h *Harness) MustPatchUser(id string, body any) {
 	h.t.Helper()
-	result := h.PatchUser(id, body)
-	require.GreaterOrEqual(h.t, result.Status, http.StatusOK, result.String())
-	require.Less(h.t, result.Status, http.StatusMultipleChoices, result.String())
+	h.PatchUser(id, body).RequireSuccess()
 }
 
 func (h *Harness) PatchThenGetUser(id string, body any) User {
@@ -266,41 +264,37 @@ func (h *Harness) PatchThenGetUser(id string, body any) User {
 
 func (h *Harness) MustDeleteUser(id string) {
 	h.t.Helper()
-	result := h.DeleteUser(id)
-	require.Equal(h.t, http.StatusNoContent, result.Status, result.String())
+	h.DeleteUser(id).RequireStatus(http.StatusNoContent)
 }
 
 func (h *Harness) MustCreateGroup(body any) Group {
 	h.t.Helper()
-	result := h.CreateGroup(body)
-	require.Equal(h.t, http.StatusCreated, result.Status, result.String())
-	group := decode[Group](h.t, result)
+	result := h.CreateGroup(body).RequireStatus(http.StatusCreated)
+	group := result.Group()
 	require.NotEmpty(h.t, group.ID, result.String())
 	return group
 }
 
 func (h *Harness) MustGetGroup(id string) Group {
 	h.t.Helper()
-	result := h.GetGroup(id)
-	require.Equal(h.t, http.StatusOK, result.Status, result.String())
-	return decode[Group](h.t, result)
+	return h.GetGroup(id).RequireStatus(http.StatusOK).Group()
 }
 
 func (h *Harness) MustListGroups(opts ListOpts) GroupList {
 	h.t.Helper()
-	result := h.ListGroups(opts)
-	require.Equal(h.t, http.StatusOK, result.Status, result.String())
-	list := decode[GroupList](h.t, result)
-	require.Contains(h.t, list.Schemas, "urn:ietf:params:scim:api:messages:2.0:ListResponse")
+	list := h.ListGroups(opts).
+		RequireStatus(http.StatusOK).
+		RequireJSONContains(map[string]any{
+			"schemas": []any{"urn:ietf:params:scim:api:messages:2.0:ListResponse"},
+		}).
+		GroupList()
 	require.Len(h.t, list.Resources, list.ItemsPerPage)
 	return list
 }
 
 func (h *Harness) MustPatchGroup(id string, body any) {
 	h.t.Helper()
-	result := h.PatchGroup(id, body)
-	require.GreaterOrEqual(h.t, result.Status, http.StatusOK, result.String())
-	require.Less(h.t, result.Status, http.StatusMultipleChoices, result.String())
+	h.PatchGroup(id, body).RequireSuccess()
 }
 
 func (h *Harness) PatchThenGetGroup(id string, body any) Group {
@@ -311,20 +305,7 @@ func (h *Harness) PatchThenGetGroup(id string, body any) Group {
 
 func (h *Harness) MustDeleteGroup(id string) {
 	h.t.Helper()
-	result := h.DeleteGroup(id)
-	require.Equal(h.t, http.StatusNoContent, result.Status, result.String())
-}
-
-func (h *Harness) RequireError(result Result, status int, scimType string) SCIMError {
-	h.t.Helper()
-	require.Equal(h.t, status, result.Status, result.String())
-	got := decode[SCIMError](h.t, result)
-	require.Equal(h.t, status, got.Status)
-	require.Contains(h.t, got.Schemas, "urn:ietf:params:scim:api:messages:2.0:Error")
-	if scimType != "" {
-		require.Equal(h.t, scimType, got.SCIMType)
-	}
-	return got
+	h.DeleteGroup(id).RequireStatus(http.StatusNoContent)
 }
 
 func (h *Harness) do(method, path string, query url.Values, body any) Result {
@@ -362,7 +343,7 @@ func (h *Harness) do(method, path string, query url.Values, body any) Result {
 
 	responseBody, err := io.ReadAll(response.Body)
 	require.NoError(h.t, err)
-	return Result{Status: response.Code, Header: response.Header(), Body: responseBody}
+	return Result{t: h.t, Status: response.Code, Header: response.Header(), Body: responseBody}
 }
 
 func listQuery(opts ListOpts) url.Values {

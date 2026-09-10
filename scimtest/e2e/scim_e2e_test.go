@@ -15,25 +15,21 @@ func TestUserPatchCases(t *testing.T) {
 	tests := []struct {
 		name string
 		body func(User) any
-		want func(User) WantUser
+		want string
 	}{
 		{
 			name: "replace display name",
 			body: func(User) any {
 				return PatchOp{Op: "replace", Path: "displayName", Value: json.RawMessage(`"Patched Name"`)}
 			},
-			want: func(User) WantUser {
-				return WantUser{DisplayName: pointer("Patched Name")}
-			},
+			want: `{"displayName":"Patched Name"}`,
 		},
 		{
 			name: "azure operation casing deactivates user",
 			body: func(User) any {
 				return PatchOp{Op: "Replace", Path: "active", Value: json.RawMessage(`false`)}
 			},
-			want: func(User) WantUser {
-				return WantUser{Active: pointer(false)}
-			},
+			want: `{"active":false}`,
 		},
 		{
 			name: "complete raw patch document",
@@ -47,9 +43,7 @@ func TestUserPatchCases(t *testing.T) {
 					}]
 				}`)
 			},
-			want: func(User) WantUser {
-				return WantUser{FamilyName: pointer("Raw-JSON-Family")}
-			},
+			want: `{"name":{"familyName":"Raw-JSON-Family"}}`,
 		},
 	}
 
@@ -59,9 +53,10 @@ func TestUserPatchCases(t *testing.T) {
 			harness := NewHarness(t)
 			created := harness.MustCreateUser(harness.Data.User())
 
-			got := harness.PatchThenGetUser(created.ID, test.body(created))
-
-			RequireUser(t, got, test.want(created))
+			harness.PatchUser(created.ID, test.body(created)).RequireSuccess()
+			harness.GetUser(created.ID).
+				RequireStatus(http.StatusOK).
+				RequireJSONContains(test.want)
 		})
 	}
 }
@@ -75,42 +70,31 @@ func TestFlexibleUserFilters(t *testing.T) {
 		harness.MustCreateUser(input)
 	}
 
-	tests := []struct {
-		name       string
-		filter     string
-		wantNames  []string
-		totalCount int
-	}{
-		{
-			name:       "joining property",
-			filter:     fmt.Sprintf(`userName eq "%s"`, inputs[0].UserName),
-			wantNames:  []string{inputs[0].UserName},
-			totalCount: 1,
-		},
-		{
-			name:       "multi-value work email",
-			filter:     fmt.Sprintf(`emails[type eq "work" and value eq "%s"]`, inputs[1].Emails[0].Value),
-			wantNames:  []string{inputs[1].UserName},
-			totalCount: 1,
-		},
-		{
-			name:       "no match still returns list response",
-			filter:     `userName eq "missing@example.test"`,
-			wantNames:  []string{},
-			totalCount: 0,
-		},
-	}
+	t.Run("joining property", func(t *testing.T) {
+		harness.ListUsers(ListOpts{Filter: fmt.Sprintf(`userName eq "%s"`, inputs[0].UserName)}).
+			RequireStatus(http.StatusOK).
+			RequirePath("totalResults", 1).
+			RequirePath("Resources.0.userName", inputs[0].UserName)
+	})
 
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			got := harness.MustListUsers(ListOpts{Filter: test.filter})
-			RequireUserList(t, got, WantUserList{
-				TotalResults: pointer(test.totalCount),
-				ItemsPerPage: pointer(test.totalCount),
-				UserNames:    test.wantNames,
-			})
-		})
-	}
+	t.Run("multi-value work email", func(t *testing.T) {
+		harness.ListUsers(ListOpts{Filter: fmt.Sprintf(`emails[type eq "work" and value eq "%s"]`, inputs[1].Emails[0].Value)}).
+			RequireStatus(http.StatusOK).
+			RequirePath("totalResults", 1).
+			RequirePath("Resources[0].userName", inputs[1].UserName)
+	})
+
+	t.Run("no match still returns list response", func(t *testing.T) {
+		harness.ListUsers(ListOpts{Filter: `userName eq "missing@example.test"`}).
+			RequireStatus(http.StatusOK).
+			RequireJSONEq(`{
+				"schemas": ["urn:ietf:params:scim:api:messages:2.0:ListResponse"],
+				"totalResults": 0,
+				"Resources": [],
+				"startIndex": 1,
+				"itemsPerPage": 0
+			}`)
+	})
 }
 
 func TestUserPagination(t *testing.T) {
@@ -121,21 +105,19 @@ func TestUserPagination(t *testing.T) {
 		harness.MustCreateUser(harness.Data.User())
 	}
 
-	got := harness.MustListUsers(ListOpts{StartIndex: 2, Count: intPointer(2)})
-	RequireUserList(t, got, WantUserList{
-		TotalResults: pointer(5),
-		ItemsPerPage: pointer(2),
-		StartIndex:   pointer(2),
-	})
+	harness.ListUsers(ListOpts{StartIndex: 2, Count: intPointer(2)}).
+		RequireStatus(http.StatusOK).
+		RequirePath("totalResults", 5).
+		RequirePath("itemsPerPage", 2).
+		RequirePath("startIndex", 2)
 }
 
 func TestInvalidFilterReturnsSCIMError(t *testing.T) {
 	t.Parallel()
 
 	harness := NewHarness(t)
-	result := harness.ListUsers(ListOpts{Filter: `userName eq`})
-
-	scimError := harness.RequireError(result, http.StatusBadRequest, "invalidFilter")
+	scimError := harness.ListUsers(ListOpts{Filter: `userName eq`}).
+		RequireError(http.StatusBadRequest, "invalidFilter")
 	require.NotEmpty(t, scimError.Detail)
 }
 
@@ -150,13 +132,16 @@ func TestRawCreateBodyAndDelete(t *testing.T) {
 		"active": true
 	}`, input.UserName))
 
-	created := harness.MustCreateUser(body)
-	RequireUser(t, harness.MustGetUser(created.ID), WantUser{
-		ID:       pointer(created.ID),
-		UserName: pointer(input.UserName),
-		Active:   pointer(true),
-	})
-	harness.MustDeleteUser(created.ID)
+	created := harness.CreateUser(body).
+		RequireStatus(http.StatusCreated).
+		RequireJSONContains(fmt.Sprintf(`{"userName":%q,"active":true}`, input.UserName)).
+		User()
+	require.NotEmpty(t, created.ID)
+
+	harness.GetUser(created.ID).
+		RequireStatus(http.StatusOK).
+		RequireJSONContains(fmt.Sprintf(`{"id":%q,"userName":%q,"active":true}`, created.ID, input.UserName))
+	harness.DeleteUser(created.ID).RequireStatus(http.StatusNoContent)
 }
 
 func TestGroupMemberPatch(t *testing.T) {
@@ -167,17 +152,16 @@ func TestGroupMemberPatch(t *testing.T) {
 	groupInput := harness.Data.Group()
 	group := harness.MustCreateGroup(groupInput)
 
-	got := harness.PatchThenGetGroup(group.ID, PatchOp{
+	harness.PatchGroup(group.ID, PatchOp{
 		Op:    "Add",
 		Path:  "members",
 		Value: json.RawMessage(fmt.Sprintf(`[{"value":%q}]`, user.ID)),
-	})
+	}).RequireSuccess()
 
-	RequireGroup(t, got, WantGroup{
-		ID:          pointer(group.ID),
-		DisplayName: pointer(groupInput.DisplayName),
-		MemberIDs:   []string{user.ID},
-	})
+	harness.GetGroup(group.ID).
+		RequireStatus(http.StatusOK).
+		RequireJSONContains(fmt.Sprintf(`{"id":%q,"displayName":%q}`, group.ID, groupInput.DisplayName)).
+		RequirePath("members.0.value", user.ID)
 }
 
 func TestDiscoveryEndpoints(t *testing.T) {
@@ -190,7 +174,8 @@ func TestDiscoveryEndpoints(t *testing.T) {
 		"resource types":          harness.GetResourceTypes(),
 	} {
 		t.Run(name, func(t *testing.T) {
-			require.Equal(t, http.StatusOK, result.Status, result.String())
+			result.t = t
+			result.RequireStatus(http.StatusOK)
 			require.True(t, json.Valid(result.Body), result.String())
 		})
 	}
