@@ -68,6 +68,7 @@ type SCIMError struct {
 type User struct {
 	Schemas     []string `json:"schemas"`
 	ID          string   `json:"id"`
+	ExternalID  string   `json:"externalId"`
 	UserName    string   `json:"userName"`
 	DisplayName string   `json:"displayName"`
 	Active      bool     `json:"active"`
@@ -120,6 +121,7 @@ type GroupList struct {
 type UserInput struct {
 	Schemas     []string `json:"schemas"`
 	UserName    string   `json:"userName"`
+	ExternalID  string   `json:"externalId,omitempty"`
 	DisplayName string   `json:"displayName,omitempty"`
 	Active      bool     `json:"active"`
 	Name        Name     `json:"name,omitempty"`
