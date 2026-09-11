@@ -28,22 +28,22 @@ const (
 	groupSchema  = "urn:ietf:params:scim:schemas:core:2.0:Group"
 )
 
-// Harness keeps HTTP mechanics and the stable SCIM endpoint paths out of tests.
+// TestClient keeps HTTP mechanics and the stable SCIM endpoint paths out of tests.
 // Use Result directly for negative tests and the Must methods for successful flows.
-type Harness struct {
+type TestClient struct {
 	t       *testing.T
 	handler http.Handler
 	Data    *DataFactory
 }
 
-func NewHarness(t *testing.T) *Harness {
+func NewTestClient(t *testing.T) *TestClient {
 	t.Helper()
 
 	router := nchi.NewRouter()
 	server := scimtest.NewServer(util.Trace(t), scimtest.NewInMemStorage())
 	router.Route(testBasePath, scimprotocol.SCIMRouter(util.Trace(t), server))
 
-	return &Harness{
+	return &TestClient{
 		t:       t,
 		handler: router,
 		Data:    NewDataFactory(t.Name()),
@@ -154,25 +154,25 @@ type patchDocument struct {
 	Operations []PatchOp `json:"Operations"`
 }
 
-func (h *Harness) CreateUser(body any) Result {
+func (h *TestClient) CreateUser(body any) Result {
 	return h.do(http.MethodPost, "/Users", nil, body)
 }
 
-func (h *Harness) GetUser(id string) Result {
+func (h *TestClient) GetUser(id string) Result {
 	return h.do(http.MethodGet, "/Users/"+url.PathEscape(id), nil, nil)
 }
 
-func (h *Harness) ListUsers(opts ListOpts) Result {
+func (h *TestClient) ListUsers(opts ListOpts) Result {
 	return h.do(http.MethodGet, "/Users", listQuery(opts), nil)
 }
 
-func (h *Harness) ReplaceUser(id string, body any) Result {
+func (h *TestClient) ReplaceUser(id string, body any) Result {
 	return h.do(http.MethodPut, "/Users/"+url.PathEscape(id), nil, body)
 }
 
 // PatchUser accepts either []PatchOp, one PatchOp, json.RawMessage, or any
 // JSON-marshalable complete PATCH document.
-func (h *Harness) PatchUser(id string, body any) Result {
+func (h *TestClient) PatchUser(id string, body any) Result {
 	switch value := body.(type) {
 	case PatchOp:
 		body = patchDocument{Schemas: []string{patchSchema}, Operations: []PatchOp{value}}
@@ -182,27 +182,27 @@ func (h *Harness) PatchUser(id string, body any) Result {
 	return h.do(http.MethodPatch, "/Users/"+url.PathEscape(id), nil, body)
 }
 
-func (h *Harness) DeleteUser(id string) Result {
+func (h *TestClient) DeleteUser(id string) Result {
 	return h.do(http.MethodDelete, "/Users/"+url.PathEscape(id), nil, nil)
 }
 
-func (h *Harness) CreateGroup(body any) Result {
+func (h *TestClient) CreateGroup(body any) Result {
 	return h.do(http.MethodPost, "/Groups", nil, body)
 }
 
-func (h *Harness) GetGroup(id string) Result {
+func (h *TestClient) GetGroup(id string) Result {
 	return h.do(http.MethodGet, "/Groups/"+url.PathEscape(id), nil, nil)
 }
 
-func (h *Harness) ListGroups(opts ListOpts) Result {
+func (h *TestClient) ListGroups(opts ListOpts) Result {
 	return h.do(http.MethodGet, "/Groups", listQuery(opts), nil)
 }
 
-func (h *Harness) ReplaceGroup(id string, body any) Result {
+func (h *TestClient) ReplaceGroup(id string, body any) Result {
 	return h.do(http.MethodPut, "/Groups/"+url.PathEscape(id), nil, body)
 }
 
-func (h *Harness) PatchGroup(id string, body any) Result {
+func (h *TestClient) PatchGroup(id string, body any) Result {
 	switch value := body.(type) {
 	case PatchOp:
 		body = patchDocument{Schemas: []string{patchSchema}, Operations: []PatchOp{value}}
@@ -212,23 +212,23 @@ func (h *Harness) PatchGroup(id string, body any) Result {
 	return h.do(http.MethodPatch, "/Groups/"+url.PathEscape(id), nil, body)
 }
 
-func (h *Harness) DeleteGroup(id string) Result {
+func (h *TestClient) DeleteGroup(id string) Result {
 	return h.do(http.MethodDelete, "/Groups/"+url.PathEscape(id), nil, nil)
 }
 
-func (h *Harness) GetServiceProviderConfig() Result {
+func (h *TestClient) GetServiceProviderConfig() Result {
 	return h.do(http.MethodGet, "/ServiceProviderConfig", nil, nil)
 }
 
-func (h *Harness) GetSchemas() Result {
+func (h *TestClient) GetSchemas() Result {
 	return h.do(http.MethodGet, "/Schemas", nil, nil)
 }
 
-func (h *Harness) GetResourceTypes() Result {
+func (h *TestClient) GetResourceTypes() Result {
 	return h.do(http.MethodGet, "/ResourceTypes", nil, nil)
 }
 
-func (h *Harness) MustCreateUser(body any) User {
+func (h *TestClient) MustCreateUser(body any) User {
 	h.t.Helper()
 	result := h.CreateUser(body).RequireStatus(http.StatusCreated)
 	user := result.User()
@@ -236,12 +236,12 @@ func (h *Harness) MustCreateUser(body any) User {
 	return user
 }
 
-func (h *Harness) MustGetUser(id string) User {
+func (h *TestClient) MustGetUser(id string) User {
 	h.t.Helper()
 	return h.GetUser(id).RequireStatus(http.StatusOK).User()
 }
 
-func (h *Harness) MustListUsers(opts ListOpts) UserList {
+func (h *TestClient) MustListUsers(opts ListOpts) UserList {
 	h.t.Helper()
 	list := h.ListUsers(opts).
 		RequireStatus(http.StatusOK).
@@ -253,23 +253,23 @@ func (h *Harness) MustListUsers(opts ListOpts) UserList {
 	return list
 }
 
-func (h *Harness) MustPatchUser(id string, body any) {
+func (h *TestClient) MustPatchUser(id string, body any) {
 	h.t.Helper()
 	h.PatchUser(id, body).RequireSuccess()
 }
 
-func (h *Harness) PatchThenGetUser(id string, body any) User {
+func (h *TestClient) PatchThenGetUser(id string, body any) User {
 	h.t.Helper()
 	h.MustPatchUser(id, body)
 	return h.MustGetUser(id)
 }
 
-func (h *Harness) MustDeleteUser(id string) {
+func (h *TestClient) MustDeleteUser(id string) {
 	h.t.Helper()
 	h.DeleteUser(id).RequireStatus(http.StatusNoContent)
 }
 
-func (h *Harness) MustCreateGroup(body any) Group {
+func (h *TestClient) MustCreateGroup(body any) Group {
 	h.t.Helper()
 	result := h.CreateGroup(body).RequireStatus(http.StatusCreated)
 	group := result.Group()
@@ -277,12 +277,12 @@ func (h *Harness) MustCreateGroup(body any) Group {
 	return group
 }
 
-func (h *Harness) MustGetGroup(id string) Group {
+func (h *TestClient) MustGetGroup(id string) Group {
 	h.t.Helper()
 	return h.GetGroup(id).RequireStatus(http.StatusOK).Group()
 }
 
-func (h *Harness) MustListGroups(opts ListOpts) GroupList {
+func (h *TestClient) MustListGroups(opts ListOpts) GroupList {
 	h.t.Helper()
 	list := h.ListGroups(opts).
 		RequireStatus(http.StatusOK).
@@ -294,23 +294,23 @@ func (h *Harness) MustListGroups(opts ListOpts) GroupList {
 	return list
 }
 
-func (h *Harness) MustPatchGroup(id string, body any) {
+func (h *TestClient) MustPatchGroup(id string, body any) {
 	h.t.Helper()
 	h.PatchGroup(id, body).RequireSuccess()
 }
 
-func (h *Harness) PatchThenGetGroup(id string, body any) Group {
+func (h *TestClient) PatchThenGetGroup(id string, body any) Group {
 	h.t.Helper()
 	h.MustPatchGroup(id, body)
 	return h.MustGetGroup(id)
 }
 
-func (h *Harness) MustDeleteGroup(id string) {
+func (h *TestClient) MustDeleteGroup(id string) {
 	h.t.Helper()
 	h.DeleteGroup(id).RequireStatus(http.StatusNoContent)
 }
 
-func (h *Harness) do(method, path string, query url.Values, body any) Result {
+func (h *TestClient) do(method, path string, query url.Values, body any) Result {
 	h.t.Helper()
 
 	var reader io.Reader

@@ -50,11 +50,11 @@ func TestUserPatchCases(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			t.Parallel()
-			harness := NewHarness(t)
-			created := harness.MustCreateUser(harness.Data.User())
+			client := NewTestClient(t)
+			created := client.MustCreateUser(client.Data.User())
 
-			harness.PatchUser(created.ID, test.body(created)).RequireSuccess()
-			harness.GetUser(created.ID).
+			client.PatchUser(created.ID, test.body(created)).RequireSuccess()
+			client.GetUser(created.ID).
 				RequireStatus(http.StatusOK).
 				RequireJSONContains(test.want)
 		})
@@ -64,28 +64,28 @@ func TestUserPatchCases(t *testing.T) {
 func TestFlexibleUserFilters(t *testing.T) {
 	t.Parallel()
 
-	harness := NewHarness(t)
-	inputs := []UserInput{harness.Data.User(), harness.Data.User(), harness.Data.User()}
+	client := NewTestClient(t)
+	inputs := []UserInput{client.Data.User(), client.Data.User(), client.Data.User()}
 	for _, input := range inputs {
-		harness.MustCreateUser(input)
+		client.MustCreateUser(input)
 	}
 
 	t.Run("joining property", func(t *testing.T) {
-		harness.ListUsers(ListOpts{Filter: fmt.Sprintf(`userName eq "%s"`, inputs[0].UserName)}).
+		client.ListUsers(ListOpts{Filter: fmt.Sprintf(`userName eq "%s"`, inputs[0].UserName)}).
 			RequireStatus(http.StatusOK).
 			RequirePath("totalResults", 1).
 			RequirePath("Resources.0.userName", inputs[0].UserName)
 	})
 
 	t.Run("multi-value work email", func(t *testing.T) {
-		harness.ListUsers(ListOpts{Filter: fmt.Sprintf(`emails[type eq "work" and value eq "%s"]`, inputs[1].Emails[0].Value)}).
+		client.ListUsers(ListOpts{Filter: fmt.Sprintf(`emails[type eq "work" and value eq "%s"]`, inputs[1].Emails[0].Value)}).
 			RequireStatus(http.StatusOK).
 			RequirePath("totalResults", 1).
 			RequirePath("Resources[0].userName", inputs[1].UserName)
 	})
 
 	t.Run("no match still returns list response", func(t *testing.T) {
-		harness.ListUsers(ListOpts{Filter: `userName eq "missing@example.test"`}).
+		client.ListUsers(ListOpts{Filter: `userName eq "missing@example.test"`}).
 			RequireStatus(http.StatusOK).
 			RequireJSONEq(`{
 				"schemas": ["urn:ietf:params:scim:api:messages:2.0:ListResponse"],
@@ -100,12 +100,12 @@ func TestFlexibleUserFilters(t *testing.T) {
 func TestUserPagination(t *testing.T) {
 	t.Parallel()
 
-	harness := NewHarness(t)
+	client := NewTestClient(t)
 	for range 5 {
-		harness.MustCreateUser(harness.Data.User())
+		client.MustCreateUser(client.Data.User())
 	}
 
-	harness.ListUsers(ListOpts{StartIndex: 2, Count: intPointer(2)}).
+	client.ListUsers(ListOpts{StartIndex: 2, Count: intPointer(2)}).
 		RequireStatus(http.StatusOK).
 		RequirePath("totalResults", 5).
 		RequirePath("itemsPerPage", 2).
@@ -115,8 +115,8 @@ func TestUserPagination(t *testing.T) {
 func TestInvalidFilterReturnsSCIMError(t *testing.T) {
 	t.Parallel()
 
-	harness := NewHarness(t)
-	scimError := harness.ListUsers(ListOpts{Filter: `userName eq`}).
+	client := NewTestClient(t)
+	scimError := client.ListUsers(ListOpts{Filter: `userName eq`}).
 		RequireError(http.StatusBadRequest, "invalidFilter")
 	require.NotEmpty(t, scimError.Detail)
 }
@@ -124,41 +124,41 @@ func TestInvalidFilterReturnsSCIMError(t *testing.T) {
 func TestRawCreateBodyAndDelete(t *testing.T) {
 	t.Parallel()
 
-	harness := NewHarness(t)
-	input := harness.Data.User()
+	client := NewTestClient(t)
+	input := client.Data.User()
 	body := json.RawMessage(fmt.Sprintf(`{
 		"schemas": ["urn:ietf:params:scim:schemas:core:2.0:User"],
 		"userName": %q,
 		"active": true
 	}`, input.UserName))
 
-	created := harness.CreateUser(body).
+	created := client.CreateUser(body).
 		RequireStatus(http.StatusCreated).
 		RequireJSONContains(fmt.Sprintf(`{"userName":%q,"active":true}`, input.UserName)).
 		User()
 	require.NotEmpty(t, created.ID)
 
-	harness.GetUser(created.ID).
+	client.GetUser(created.ID).
 		RequireStatus(http.StatusOK).
 		RequireJSONContains(fmt.Sprintf(`{"id":%q,"userName":%q,"active":true}`, created.ID, input.UserName))
-	harness.DeleteUser(created.ID).RequireStatus(http.StatusNoContent)
+	client.DeleteUser(created.ID).RequireStatus(http.StatusNoContent)
 }
 
 func TestGroupMemberPatch(t *testing.T) {
 	t.Parallel()
 
-	harness := NewHarness(t)
-	user := harness.MustCreateUser(harness.Data.User())
-	groupInput := harness.Data.Group()
-	group := harness.MustCreateGroup(groupInput)
+	client := NewTestClient(t)
+	user := client.MustCreateUser(client.Data.User())
+	groupInput := client.Data.Group()
+	group := client.MustCreateGroup(groupInput)
 
-	harness.PatchGroup(group.ID, PatchOp{
+	client.PatchGroup(group.ID, PatchOp{
 		Op:    "Add",
 		Path:  "members",
 		Value: json.RawMessage(fmt.Sprintf(`[{"value":%q}]`, user.ID)),
 	}).RequireSuccess()
 
-	harness.GetGroup(group.ID).
+	client.GetGroup(group.ID).
 		RequireStatus(http.StatusOK).
 		RequireJSONContains(fmt.Sprintf(`{"id":%q,"displayName":%q}`, group.ID, groupInput.DisplayName)).
 		RequirePath("members.0.value", user.ID)
@@ -167,11 +167,11 @@ func TestGroupMemberPatch(t *testing.T) {
 func TestDiscoveryEndpoints(t *testing.T) {
 	t.Parallel()
 
-	harness := NewHarness(t)
+	client := NewTestClient(t)
 	for name, result := range map[string]Result{
-		"service provider config": harness.GetServiceProviderConfig(),
-		"schemas":                 harness.GetSchemas(),
-		"resource types":          harness.GetResourceTypes(),
+		"service provider config": client.GetServiceProviderConfig(),
+		"schemas":                 client.GetSchemas(),
+		"resource types":          client.GetResourceTypes(),
 	} {
 		t.Run(name, func(t *testing.T) {
 			result.t = t

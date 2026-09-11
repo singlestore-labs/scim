@@ -28,7 +28,7 @@ func TestOktaSCIM20Suite(t *testing.T) {
 
 	t.Run("GET Users pagination for connection and import", func(t *testing.T) {
 		t.Parallel()
-		h := NewHarness(t)
+		h := NewTestClient(t)
 		h.ListUsers(ListOpts{StartIndex: 1, Count: intPointer(2)}).
 			RequireStatus(http.StatusOK).
 			RequireJSONEq(`{
@@ -47,7 +47,7 @@ func TestOktaSCIM20Suite(t *testing.T) {
 
 	t.Run("GET Groups pagination for connection", func(t *testing.T) {
 		t.Parallel()
-		h := NewHarness(t)
+		h := NewTestClient(t)
 		h.ListGroups(ListOpts{StartIndex: 1, Count: intPointer(100)}).
 			RequireStatus(http.StatusOK).
 			RequirePath("totalResults", 0).
@@ -56,7 +56,7 @@ func TestOktaSCIM20Suite(t *testing.T) {
 
 	t.Run("CRUD user lifecycle", func(t *testing.T) {
 		t.Parallel()
-		h := NewHarness(t)
+		h := NewTestClient(t)
 		input := h.Data.User()
 		input.ExternalID = "okta-ext-" + input.UserName
 
@@ -97,7 +97,7 @@ func TestOktaSCIM20Suite(t *testing.T) {
 
 	t.Run("PUT then GET user as Okta custom apps do", func(t *testing.T) {
 		t.Parallel()
-		h := NewHarness(t)
+		h := NewTestClient(t)
 		input := h.Data.User()
 		created := h.MustCreateUser(input)
 		input.DisplayName = "Renamed by PUT"
@@ -108,7 +108,7 @@ func TestOktaSCIM20Suite(t *testing.T) {
 
 	t.Run("group create filter get rename members delete", func(t *testing.T) {
 		t.Parallel()
-		h := NewHarness(t)
+		h := NewTestClient(t)
 		user := h.MustCreateUser(h.Data.User())
 		input := h.Data.Group()
 
@@ -158,7 +158,7 @@ func TestAzureEntraSCIMValidator(t *testing.T) {
 
 	t.Run("Create New User then filter then delete", func(t *testing.T) {
 		t.Parallel()
-		h := NewHarness(t)
+		h := NewTestClient(t)
 		input := h.Data.User()
 		created := h.CreateUser(input).
 			RequireStatus(http.StatusCreated).
@@ -174,7 +174,7 @@ func TestAzureEntraSCIMValidator(t *testing.T) {
 
 	t.Run("Create Duplicate User returns 409", func(t *testing.T) {
 		t.Parallel()
-		h := NewHarness(t)
+		h := NewTestClient(t)
 		input := h.Data.User()
 		h.CreateUser(input).RequireStatus(http.StatusCreated)
 		h.CreateUser(input).RequireError(http.StatusConflict, "uniqueness")
@@ -182,7 +182,7 @@ func TestAzureEntraSCIMValidator(t *testing.T) {
 
 	t.Run("Get User found and not found", func(t *testing.T) {
 		t.Parallel()
-		h := NewHarness(t)
+		h := NewTestClient(t)
 		created := h.MustCreateUser(h.Data.User())
 		h.GetUser(created.ID).
 			RequireStatus(http.StatusOK).
@@ -192,7 +192,7 @@ func TestAzureEntraSCIMValidator(t *testing.T) {
 
 	t.Run("Get User by query zero results", func(t *testing.T) {
 		t.Parallel()
-		h := NewHarness(t)
+		h := NewTestClient(t)
 		h.ListUsers(ListOpts{Filter: eqFilter("userName", "non-existent user")}).
 			RequireStatus(http.StatusOK).
 			RequireJSONEq(`{
@@ -206,7 +206,7 @@ func TestAzureEntraSCIMValidator(t *testing.T) {
 
 	t.Run("Add Attributes", func(t *testing.T) {
 		t.Parallel()
-		h := NewHarness(t)
+		h := NewTestClient(t)
 		input := h.Data.User()
 		input.DisplayName = ""
 		created := h.MustCreateUser(input)
@@ -218,7 +218,7 @@ func TestAzureEntraSCIMValidator(t *testing.T) {
 
 	t.Run("Replace User Attributes including multi-value", func(t *testing.T) {
 		t.Parallel()
-		h := NewHarness(t)
+		h := NewTestClient(t)
 		input := h.Data.User()
 		created := h.MustCreateUser(input)
 		h.PatchUser(created.ID, []PatchOp{
@@ -232,7 +232,7 @@ func TestAzureEntraSCIMValidator(t *testing.T) {
 
 	t.Run("Update Joining Property", func(t *testing.T) {
 		t.Parallel()
-		h := NewHarness(t)
+		h := NewTestClient(t)
 		input := h.Data.User()
 		created := h.MustCreateUser(input)
 		newName := "updated-" + input.UserName
@@ -245,7 +245,7 @@ func TestAzureEntraSCIMValidator(t *testing.T) {
 
 	t.Run("Update Active Attribute to False", func(t *testing.T) {
 		t.Parallel()
-		h := NewHarness(t)
+		h := NewTestClient(t)
 		input := h.Data.User()
 		created := h.MustCreateUser(input)
 		h.PatchUser(created.ID, PatchOp{Op: "Replace", Path: "active", Value: json.RawMessage(`false`)}).
@@ -257,7 +257,7 @@ func TestAzureEntraSCIMValidator(t *testing.T) {
 
 	t.Run("Create New Group then filter then delete", func(t *testing.T) {
 		t.Parallel()
-		h := NewHarness(t)
+		h := NewTestClient(t)
 		input := h.Data.Group()
 		group := h.CreateGroup(input).
 			RequireStatus(http.StatusCreated).
@@ -272,7 +272,7 @@ func TestAzureEntraSCIMValidator(t *testing.T) {
 
 	t.Run("Create Duplicate Group returns 409", func(t *testing.T) {
 		t.Parallel()
-		h := NewHarness(t)
+		h := NewTestClient(t)
 		input := h.Data.Group()
 		h.CreateGroup(input).RequireStatus(http.StatusCreated)
 		h.CreateGroup(input).RequireError(http.StatusConflict, "uniqueness")
@@ -280,7 +280,7 @@ func TestAzureEntraSCIMValidator(t *testing.T) {
 
 	t.Run("Get Group excludedAttributes members", func(t *testing.T) {
 		t.Parallel()
-		h := NewHarness(t)
+		h := NewTestClient(t)
 		user := h.MustCreateUser(h.Data.User())
 		input := h.Data.Group()
 		input.Members = []GroupMember{{Value: user.ID}}
@@ -294,7 +294,7 @@ func TestAzureEntraSCIMValidator(t *testing.T) {
 
 	t.Run("Update Group non-member attributes", func(t *testing.T) {
 		t.Parallel()
-		h := NewHarness(t)
+		h := NewTestClient(t)
 		input := h.Data.Group()
 		group := h.MustCreateGroup(input)
 		newName := input.DisplayName + "-updated"
@@ -307,7 +307,7 @@ func TestAzureEntraSCIMValidator(t *testing.T) {
 
 	t.Run("Update Group add and remove members", func(t *testing.T) {
 		t.Parallel()
-		h := NewHarness(t)
+		h := NewTestClient(t)
 		user := h.MustCreateUser(h.Data.User())
 		group := h.MustCreateGroup(h.Data.Group())
 		h.PatchGroup(group.ID, json.RawMessage(fmt.Sprintf(`{
@@ -332,7 +332,7 @@ func TestAzureEntraSCIMValidator(t *testing.T) {
 
 	t.Run("schema discovery", func(t *testing.T) {
 		t.Parallel()
-		h := NewHarness(t)
+		h := NewTestClient(t)
 		h.GetServiceProviderConfig().RequireStatus(http.StatusOK).RequireJSONContains(`{"patch":{"supported":true},"filter":{"supported":true}}`)
 		h.GetSchemas().RequireStatus(http.StatusOK)
 		h.GetResourceTypes().RequireStatus(http.StatusOK)
