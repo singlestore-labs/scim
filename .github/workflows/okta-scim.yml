@@ -1,0 +1,57 @@
+name: Okta SCIM 2.0 SPEC
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  okta-spec:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1
+        with:
+          egress-policy: audit
+
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+
+      - name: Install Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e
+        with:
+          go-version-file: go.mod
+
+      - name: Start local SCIM server
+        run: |
+          go build -o /tmp/scimtestd ./cmd/scimtestd
+          /tmp/scimtestd >/tmp/scimtestd.log 2>&1 &
+          echo "$!" >/tmp/scimtestd.pid
+          for attempt in {1..30}; do
+            if curl --fail --silent \
+              -H 'Authorization: Bearer dummyToken' \
+              http://127.0.0.1:18080/scim/v2/ServiceProviderConfig >/dev/null; then
+              exit 0
+            fi
+            sleep 1
+          done
+          cat /tmp/scimtestd.log
+          exit 1
+
+      - name: Run Okta SCIM specification
+        env:
+          SCIM_AUTH: Bearer dummyToken
+          SCIM_BASE_URL: http://127.0.0.1:18080/scim/v2
+        run: go test ./e2e -run TestOktaSCIM20Spec -v
+
+      - name: Print server log on failure
+        if: failure()
+        run: cat /tmp/scimtestd.log
+
+      - name: Stop local SCIM server
+        if: always()
+        run: kill "$(cat /tmp/scimtestd.pid)" 2>/dev/null || true

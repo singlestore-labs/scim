@@ -157,6 +157,38 @@ type PrimaryDataType interface {
 ## Azure tweaks
 Azure uses filter in a patch to add new element for multi-value attributes. Like if non of the element can pass filter then it will add one with the value in the patch. Use `azureFilterAdd` to trigger support adding elements to multi-value attributes with filters.
 
+## Okta SCIM compatibility test
+
+The end-to-end test replays Okta's official
+[SCIM 2.0 SPEC export](https://developer.okta.com/standards/SCIM/SCIMFiles/Okta-SCIM-20-SPEC-Test.json)
+against the in-memory example server. It runs locally without a Runscope or
+BlazeMeter account:
+
+```sh
+go test ./e2e -run TestOktaSCIM20Spec -v
+```
+
+GitHub Actions starts `cmd/scimtestd` as a separate local process before
+running the same test. To test another Runscope API Monitoring export or a
+different server:
+
+```sh
+RUNSCOPE_SUITE=/path/to/export.json \
+RUNSCOPE_VARIABLES='{"newVariable":"value"}' \
+SCIM_BASE_URL=http://127.0.0.1:18080/scim/v2 \
+SCIM_AUTH='Bearer dummyToken' \
+go test ./e2e -run TestOktaSCIM20Spec -v
+```
+
+`RUNSCOPE_VARIABLES` is optional and overrides the built-in Okta initial
+variables. This allows another export to provide additional placeholders
+without changing the runner.
+
+The reusable executor in `e2e/runscope` supports request and pause steps,
+variable substitution and extraction, and the assertion types used by Okta's
+current export. Unsupported future step, assertion, or script types fail with
+an explicit error instead of being silently ignored.
+
 
 ## Note
 This repo does not contains `name` and `description` in `schemas` because they are optional in RFC.

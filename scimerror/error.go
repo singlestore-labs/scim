@@ -82,16 +82,18 @@ func NewBadRequestSCIMErr(t SCIMErrorType, e error) error {
 }
 
 func (se SCIMError) MarshalSCIM() ([]byte, error) {
+	// RFC 7644 §3.12: status is a JSON string, not a number. Okta SPEC and
+	// Entra SCIM Validator both assert on the string form.
 	withSchema := struct {
 		Schemas  []string `json:"schemas"`
 		SCIMType string   `json:"scimType,omitempty"`
 		Detail   string   `json:"detail"`
-		Status   int      `json:"status"`
+		Status   string   `json:"status"`
 	}{
 		Schemas:  []string{"urn:ietf:params:scim:api:messages:2.0:Error"},
 		SCIMType: string(se.scimType),
 		Detail:   se.Detail.Error(),
-		Status:   se.Status,
+		Status:   fmt.Sprintf("%d", se.Status),
 	}
 	return json.Marshal(withSchema)
 }
