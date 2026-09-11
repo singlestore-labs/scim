@@ -34,17 +34,17 @@ A working in-memory SCIM HTTP server is in [`scimtest`](./scimtest).
 
 Example: `` `scim:"userName,returned=always,required"` ``
 
-| Characteristic | Tag | Values (default) | Used for |
-| --- | --- | --- | --- |
-| name | first tag token | attribute name (required) | JSON name, filter/PATCH path, schemas |
-| required | `required` / `!required` | bool (`false`) | unmarshal validation |
-| caseExact | `caseExact` / `!caseExact` | bool (`false`) | filter comparison |
-| mutability | `mutability=` | `readWrite` (default), `readOnly`, `immutable`, `writeOnly` | PATCH / update |
-| returned | `returned=` | `default` (omit empty), `keepEmpty`, `always`, `never`, `request` | marshal / `attributes=` selection |
-| uniqueness | `uniqueness=` | `none` (default), `server`, `global` | schemas |
-| canonicalValues | `canonicalValues=` | space-separated list | schemas (e.g. email `type`) |
-| referenceTypes | `referenceTypes=` | space-separated list | schemas (e.g. `$ref`) |
-| ignoreUnmarshal | `ignoreUnmarshal` | bool (`false`) | skip unmarshal (`id`, `meta`) |
+| Characteristic | Tag | Used for |
+| --- | --- | --- |
+| name | first tag token | JSON name, filter/PATCH path, schemas |
+| required | `required` / `!required` | unmarshal validation |
+| caseExact | `caseExact` / `!caseExact` | filter comparison |
+| mutability | `mutability=` | PATCH / update (`readWrite`, `readOnly`, `immutable`, `writeOnly`) |
+| returned | `returned=` | marshal / `attributes=` selection (`default`, `keepEmpty`, `always`, `never`, `request`) |
+| uniqueness | `uniqueness=` | scope of the unique value: `none`, `server`, or `global` |
+| canonicalValues | `canonicalValues=` | allowed values in schemas (e.g. email `type`: `work`) |
+| referenceTypes | `referenceTypes=` | resource types a `$ref` may point to — e.g. a User's `groups.$ref` with `referenceTypes=User Group` |
+| ignoreUnmarshal | `ignoreUnmarshal` | skip unmarshal (`id`, `meta`) |
 
 `returned=keepEmpty` is an extension (emitted as `default` in schemas) so some attributes can stay visible while others omit empty values — useful for Azure AD / Entra ID and other IdPs.
 
