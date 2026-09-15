@@ -34,7 +34,7 @@ type ResourceType struct {
 	Meta               ResourceTypeMeta `json:"meta"`
 }
 
-func (r ResourceType) MarshalSCIM() ([]byte, error) {
+func (r ResourceType) MarshalSCIM([]string, bool) ([]byte, error) {
 	schema, extensions, err := GetSchemaURIFromResource(r.ResourceObjectType, nil)
 	if err != nil {
 		return nil, err
@@ -63,8 +63,8 @@ type ListResponse[T any] struct {
 
 var _ SCIMMarshaler = ListResponse[json.RawMessage]{}
 
-func (l ListResponse[T]) MarshalSCIM() ([]byte, error) {
-	resources, err := Marshal(l.Resources)
+func (l ListResponse[T]) MarshalSCIM(selectedAttr []string, excludeSelected bool) ([]byte, error) {
+	resources, err := MarshalWithSelectedAttr(l.Resources, selectedAttr, excludeSelected)
 	if err != nil {
 		return nil, err
 	}

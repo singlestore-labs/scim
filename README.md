@@ -127,7 +127,7 @@ This library has its own [SCIM marshal](scimmarshal.go) with scim [tag](./scimta
 This library supports customization marshal, however, if you use SCIMMarshaler/SCIMUnmarshaler, then filter and patch will not works on that resource.
 ```
 	type SCIMMarshaler interface {
-		MarshalSCIM() ([]byte, error)
+		MarshalSCIM(selectedAttr []string, excludeSelected bool) ([]byte, error)
 	}
 
 	type SCIMUnmarshaler interface {

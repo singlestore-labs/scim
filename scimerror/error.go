@@ -81,7 +81,7 @@ func NewBadRequestSCIMErr(t SCIMErrorType, e error) error {
 	}
 }
 
-func (se SCIMError) MarshalSCIM() ([]byte, error) {
+func (se SCIMError) MarshalSCIM([]string, bool) ([]byte, error) {
 	withSchema := struct {
 		Schemas  []string `json:"schemas"`
 		SCIMType string   `json:"scimType,omitempty"`

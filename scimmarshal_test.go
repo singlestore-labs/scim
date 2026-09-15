@@ -214,3 +214,38 @@ func TestUnmarshal(t *testing.T) {
 	err = scimprotocol.Unmarshal(testErrJSON, &object)
 	require.ErrorContains(t, err, "required")
 }
+
+func TestListResponseHonorsExcludedAttributes(t *testing.T) {
+	t.Parallel()
+	resource := TestMarshalObject{
+		TestUser: TestUser{
+			Always:        "keep",
+			DefaultReturn: "visible",
+			RequiredField: "required",
+			ID:            TestResourceID{UUID: uuid.MustParse("123e4567-e89b-12d3-a456-426614174000")},
+			Members: []Members{
+				{Value: TestResourceID{UUID: uuid.MustParse("223e4567-e89b-12d3-a456-426614174000")}, Display: "member1"},
+			},
+		},
+	}
+	list := scimprotocol.ListResponse[TestMarshalObject]{
+		Resources:    []TestMarshalObject{resource},
+		StartIndex:   1,
+		ItemsPerPage: 1,
+		TotalResults: 1,
+	}
+
+	encoded, err := scimprotocol.MarshalWithSelectedAttr(list, []string{"members"}, true)
+	require.NoError(t, err)
+
+	var decoded map[string]any
+	require.NoError(t, json.Unmarshal(encoded, &decoded))
+	resources, ok := decoded["Resources"].([]any)
+	require.True(t, ok)
+	require.Len(t, resources, 1)
+	item, ok := resources[0].(map[string]any)
+	require.True(t, ok)
+	_, hasMembers := item["members"]
+	require.False(t, hasMembers, string(encoded))
+	require.Equal(t, "visible", item["defaultReturn"])
+}
