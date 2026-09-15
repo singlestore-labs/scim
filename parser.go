@@ -32,7 +32,7 @@ var Lex = lexer.MustSimple([]lexer.SimpleRule{
 	{Name: ")", Pattern: `\)`},
 	{Name: "[", Pattern: `\[`},
 	{Name: "]", Pattern: `\]`},
-	{Name: "Not", Pattern: `not[ \t]+`},
+	{Name: "Not", Pattern: `(?i)not[ \t]+`},
 	{Name: "URI", Pattern: uriPattrn},
 	{Name: "AttrName", Pattern: `[a-zA-Z][-a-zA-Z0-9_]*`},
 	{Name: "Whitespace", Pattern: `[ \t]+`},
@@ -315,15 +315,21 @@ func (ne NotExpression) RedactedString() string {
 	}
 }
 
+func parserOptions() []participle.Option {
+	return []participle.Option{
+		participle.Lexer(Lex),
+		// order matters
+		participle.Union[Expr](Expression{}, NotExpression{}),
+		// RFC 7644 §3.4.2.2: attribute names and operators are case-insensitive.
+		participle.CaseInsensitive("AttrName"),
+	}
+}
+
 func ParseFilter(filterStr string) (*OrExpression, error) {
 	if len(filterStr) == 0 {
 		return nil, scimerror.NewBadRequestSCIMErr(scimerror.InvalidFilter, errors.Errorf("input filter is empty"))
 	}
-	filterParser := participle.MustBuild[OrExpression](
-		participle.Lexer(Lex),
-		// order is matters
-		participle.Union[Expr](Expression{}, NotExpression{}),
-	)
+	filterParser := participle.MustBuild[OrExpression](parserOptions()...)
 	filter, err := filterParser.ParseString("", filterStr)
 	if err != nil {
 		return nil, scimerror.NewBadRequestSCIMErr(scimerror.InvalidFilter, errors.Wrapf(err, "failed to parse filter, %s", filterStr))
@@ -335,10 +341,7 @@ func ParsePath(pathStr string) (*Path, error) {
 	if len(pathStr) == 0 {
 		return nil, nil // path could be empty when doing patch
 	}
-	filterParser := participle.MustBuild[Path](
-		participle.Lexer(Lex),
-		participle.Union[Expr](Expression{}, NotExpression{}),
-	)
+	filterParser := participle.MustBuild[Path](parserOptions()...)
 	path, err := filterParser.ParseString("", pathStr)
 	if err != nil {
 		return nil, scimerror.NewBadRequestSCIMErr(scimerror.InvalidFilter, errors.Wrapf(err, "failed to parse path, %s", pathStr))
