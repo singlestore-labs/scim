@@ -44,7 +44,7 @@ func (id *TestResourceID) UnmarshalJSON(data []byte) error {
 
 var _ scimprotocol.PrimaryDataType = TestResourceID{}
 
-func (id TestResourceID) SCIMCompareValue(op string, stringValue string, azureAdd bool) (bool, error) {
+func (id TestResourceID) SCIMCompareValue(op scimprotocol.CompareOp, stringValue string, azureAdd bool) (bool, error) {
 	if op == "pr" {
 		return id.UUID != uuid.Nil, nil
 	}
@@ -88,9 +88,11 @@ type ResourceRef struct {
 	Display string         `scim:"display"`
 }
 
-type Manager ResourceRef
-type Groups ResourceRef
-type Members ResourceRef
+type (
+	Manager ResourceRef
+	Groups  ResourceRef
+	Members ResourceRef
+)
 
 var _ scimprotocol.Resource = TestMarshalObject{}
 
@@ -118,7 +120,8 @@ func TestMarshal(t *testing.T) {
 			RequiredField:   "",
 			ID:              TestResourceID{UUID: uuid.MustParse("123e4567-e89b-12d3-a456-426614174000")},
 			Members: []Members{
-				{Value: TestResourceID{UUID: uuid.MustParse("223e4567-e89b-12d3-a456-426614174000")}, Display: "member1"}},
+				{Value: TestResourceID{UUID: uuid.MustParse("223e4567-e89b-12d3-a456-426614174000")}, Display: "member1"},
+			},
 			Manager: Manager{
 				Value: TestResourceID{UUID: uuid.MustParse("323e4567-e89b-12d3-a456-426614174000")},
 			},
@@ -164,7 +167,8 @@ func TestUnmarshal(t *testing.T) {
 			IgnoreUnmarshal: "", // should be ignored
 			RequiredField:   "require value here",
 			Members: []Members{
-				{Value: TestResourceID{UUID: uuid.MustParse("223e4567-e89b-12d3-a456-426614174000")}, Display: "member1"}},
+				{Value: TestResourceID{UUID: uuid.MustParse("223e4567-e89b-12d3-a456-426614174000")}, Display: "member1"},
+			},
 			Manager: Manager{
 				Value: TestResourceID{UUID: uuid.MustParse("323e4567-e89b-12d3-a456-426614174000")},
 			},
