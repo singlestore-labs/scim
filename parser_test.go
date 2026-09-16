@@ -3,7 +3,6 @@ package scimprotocol
 import (
 	"fmt"
 	"regexp"
-	"strings"
 	"testing"
 
 	"github.com/alecthomas/participle/v2"
@@ -697,7 +696,7 @@ func TestParseFilterOperatorCaseInsensitive(t *testing.T) {
 		require.NoError(t, err, op)
 		expr, ok := parsed.Left.Left.(Expression)
 		require.True(t, ok, op)
-		require.Equal(t, "eq", strings.ToLower(expr.CompareOp), op)
+		require.Equal(t, OpEQ, expr.CompareOp, op)
 	}
 
 	parsed, err := ParseFilter(`userName eq "a" OR userName eq "b"`)

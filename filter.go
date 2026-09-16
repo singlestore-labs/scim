@@ -115,7 +115,7 @@ func EvalHelper(e Expression, p *Node, objV reflect.Value, scimCharacs *scimtag.
 
 // CompareValueAddIfAzure compare the target reflect value with input op and value.
 // if azureAdd is true, it will set the target value when op is 'eq'.
-func CompareValueAddIfAzure(target reflect.Value, targetCharacs *scimtag.Characteristics, op string, value string, azureAdd bool) (bool, error) {
+func CompareValueAddIfAzure(target reflect.Value, targetCharacs *scimtag.Characteristics, op CompareOp, value string, azureAdd bool) (bool, error) {
 	if op == "" && value == "" {
 		return true, nil // no filter
 	}
@@ -125,7 +125,7 @@ func CompareValueAddIfAzure(target reflect.Value, targetCharacs *scimtag.Charact
 
 	t := target.Type()
 	if v, ok := target.Interface().(PrimaryDataType); ok {
-		return v.SCIMCompareValue(op, value, azureAdd)
+		return v.SCIMCompareValue(string(op), value, azureAdd)
 	}
 	switch t.Kind() {
 	case reflect.Array, reflect.Slice:
@@ -153,7 +153,7 @@ func CompareValueAddIfAzure(target reflect.Value, targetCharacs *scimtag.Charact
 		if err != nil {
 			return false, scimerror.NewBadRequestSCIMErr(scimerror.InvalidFilter, errors.Errorf("cannot compare string with non-string on %s with %s: %w", targetCharacs.Name, value, err))
 		}
-		if azureAdd && op == "eq" {
+		if azureAdd && op == OpEQ {
 			if !target.CanSet() {
 				return false, errors.Errorf("failed to do azure add patch, cannot set %s (reflect value %s)", targetCharacs.Name, target)
 			}
@@ -166,7 +166,7 @@ func CompareValueAddIfAzure(target reflect.Value, targetCharacs *scimtag.Charact
 		if err != nil {
 			return false, scimerror.NewBadRequestSCIMErr(scimerror.InvalidFilter, errors.Errorf("cannot compare boolean on %s with %s", targetCharacs.Name, value))
 		}
-		if azureAdd && op == "eq" {
+		if azureAdd && op == OpEQ {
 			if !target.CanSet() {
 				return false, errors.Errorf("failed to do azure add patch, cannot set %s (reflect value %s)", targetCharacs.Name, target)
 			}
@@ -196,65 +196,65 @@ func CompareValueAddIfAzure(target reflect.Value, targetCharacs *scimtag.Charact
 	}
 }
 
-func compareDateTime(left time.Time, op string, right time.Time) (bool, error) {
-	switch strings.ToLower(op) {
-	case "pr":
+func compareDateTime(left time.Time, op CompareOp, right time.Time) (bool, error) {
+	switch op {
+	case OpPR:
 		return left.Equal(time.Time{}), nil
-	case "eq":
+	case OpEQ:
 		return left.Equal(right), nil
-	case "ne":
+	case OpNE:
 		return !left.Equal(right), nil
-	case "gt":
+	case OpGT:
 		return left.After(right), nil
-	case "ge":
+	case OpGE:
 		return !left.Before(right), nil
-	case "lt":
+	case OpLT:
 		return left.Before(right), nil
-	case "le":
+	case OpLE:
 		return !left.After(right), nil
 	default:
 		return false, scimerror.NewBadRequestSCIMErr(scimerror.InvalidFilter, errors.Errorf("not support compare operation %s on %T", op, left))
 	}
 }
 
-func compareString(left string, op string, right string, caseExact bool) (bool, error) {
+func compareString(left string, op CompareOp, right string, caseExact bool) (bool, error) {
 	if !caseExact {
 		left = strings.ToLower(left)
 		right = strings.ToLower(right)
 	}
-	switch strings.ToLower(op) {
-	case "pr":
+	switch op {
+	case OpPR:
 		return left != "", nil
-	case "eq":
+	case OpEQ:
 		return left == right, nil
-	case "ne":
+	case OpNE:
 		return left != right, nil
-	case "co":
+	case OpCO:
 		return strings.Contains(left, right), nil
-	case "sw":
+	case OpSW:
 		return strings.HasPrefix(left, right), nil
-	case "ew":
+	case OpEW:
 		return strings.HasSuffix(left, right), nil
-	case "gt":
+	case OpGT:
 		return left > right, nil
-	case "ge":
+	case OpGE:
 		return left >= right, nil
-	case "lt":
+	case OpLT:
 		return left < right, nil
-	case "le":
+	case OpLE:
 		return left <= right, nil
 	default:
 		return false, scimerror.NewBadRequestSCIMErr(scimerror.InvalidFilter, errors.Errorf("not support compare operation %s on %T", op, left))
 	}
 }
 
-func compareBool(left bool, op string, right bool) (bool, error) {
-	switch strings.ToLower(op) {
-	case "pr":
+func compareBool(left bool, op CompareOp, right bool) (bool, error) {
+	switch op {
+	case OpPR:
 		return true, nil
-	case "eq":
+	case OpEQ:
 		return left == right, nil
-	case "ne":
+	case OpNE:
 		return left != right, nil
 	default:
 		return false, scimerror.NewBadRequestSCIMErr(scimerror.InvalidFilter, errors.Errorf("not support compare operation %s on %T", op, left))
