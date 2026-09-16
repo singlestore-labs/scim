@@ -125,7 +125,7 @@ func CompareValueAddIfAzure(target reflect.Value, targetCharacs *scimtag.Charact
 
 	t := target.Type()
 	if v, ok := target.Interface().(PrimaryDataType); ok {
-		return v.SCIMCompareValue(op, value, azureAdd)
+		return v.SCIMCompareValue(string(op), value, azureAdd)
 	}
 	switch t.Kind() {
 	case reflect.Array, reflect.Slice:
