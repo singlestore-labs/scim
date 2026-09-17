@@ -24,7 +24,7 @@ type SCIMUnmarshaler interface {
 }
 
 type PrimaryDataType interface {
-	SCIMCompareValue(op string, stringValue string, azureAdd bool) (bool, error)
+	SCIMCompareValue(op CompareOp, stringValue string, azureAdd bool) (bool, error)
 }
 
 func Marshal(obj any) ([]byte, error) {

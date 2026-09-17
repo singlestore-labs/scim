@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"reflect"
 	"regexp"
+	"strings"
 
 	sq "github.com/Masterminds/squirrel"
 	"github.com/alecthomas/participle/v2"
@@ -32,9 +33,9 @@ var Lex = lexer.MustSimple([]lexer.SimpleRule{
 	{Name: ")", Pattern: `\)`},
 	{Name: "[", Pattern: `\[`},
 	{Name: "]", Pattern: `\]`},
-	{Name: "Not", Pattern: `not[ \t]+`},
+	{Name: "Not", Pattern: `(?i)not[ \t]+`},
 	{Name: "URI", Pattern: uriPattrn},
-	{Name: "AttrName", Pattern: `[a-zA-Z][-a-zA-Z0-9_]*`},
+	{Name: "Ident", Pattern: `[a-zA-Z][-a-zA-Z0-9_]*`}, // Case-insensitive: attribute name, compare operators, logic operators
 	{Name: "Whitespace", Pattern: `[ \t]+`},
 	{Name: "Dot", Pattern: `\.`},
 	{Name: "Colon", Pattern: `\:`},
@@ -151,11 +152,35 @@ func (ot AndTerm) Eval(v reflect.Value, azureAdd bool) (bool, error) {
 	return value, nil
 }
 
+type CompareOp string
+
+// RFC 7644 §3.4.2.2 attribute operators. The parser tag on Expression is
+// the allow-list; these constants are for Go comparisons after Capture.
+const (
+	OpPR CompareOp = "pr"
+	OpEQ CompareOp = "eq"
+	OpNE CompareOp = "ne"
+	OpCO CompareOp = "co"
+	OpSW CompareOp = "sw"
+	OpEW CompareOp = "ew"
+	OpGT CompareOp = "gt"
+	OpLT CompareOp = "lt"
+	OpGE CompareOp = "ge"
+	OpLE CompareOp = "le"
+)
+
+var _ participle.Capture = (*CompareOp)(nil)
+
+func (c *CompareOp) Capture(values []string) error {
+	*c = CompareOp(strings.ToLower(values[0]))
+	return nil
+}
+
 type Expression struct { // compare expression
 	Path Path `parser:"@@"`
 	// check CompareOp in grammar to avoid tokenize conflict
-	CompareOp string `parser:"(Whitespace (@'pr' | (@('eq'|'ne'|'co'|'sw'|'ew'|'gt'|'lt'|'ge'|'le')"`
-	Value     string `parser:"  Whitespace @CompValue)))?"`
+	CompareOp CompareOp `parser:"(Whitespace (@'pr' | (@('eq'|'ne'|'co'|'sw'|'ew'|'gt'|'lt'|'ge'|'le')"`
+	Value     string    `parser:"  Whitespace @CompValue)))?"`
 }
 
 var _ Expr = (*Expression)(nil)
@@ -212,9 +237,9 @@ func (e Expression) ToSqlizer(sg SQLGenerator, not bool) (sq.Sqlizer, error) {
 type Path struct {
 	URI         string        `parser:"(@URI"`
 	Colon       string        `parser:"  ':')?"`
-	AttrName    string        `parser:"@AttrName"`
+	AttrName    string        `parser:"@Ident"`
 	Filter      *OrExpression `parser:"('[' Whitespace? @@  Whitespace?']')?"`
-	SubAttrName string        `parser:"('.'@AttrName)?"`
+	SubAttrName string        `parser:"('.'@Ident)?"`
 }
 
 func (p Path) String() string {
@@ -315,15 +340,21 @@ func (ne NotExpression) RedactedString() string {
 	}
 }
 
+func parserOptions() []participle.Option {
+	return []participle.Option{
+		participle.Lexer(Lex),
+		// order matters
+		participle.Union[Expr](Expression{}, NotExpression{}),
+		// RFC 7644 §3.4.2.2: attribute names and operators are case-insensitive.
+		participle.CaseInsensitive("Ident"),
+	}
+}
+
 func ParseFilter(filterStr string) (*OrExpression, error) {
 	if len(filterStr) == 0 {
 		return nil, scimerror.NewBadRequestSCIMErr(scimerror.InvalidFilter, errors.Errorf("input filter is empty"))
 	}
-	filterParser := participle.MustBuild[OrExpression](
-		participle.Lexer(Lex),
-		// order is matters
-		participle.Union[Expr](Expression{}, NotExpression{}),
-	)
+	filterParser := participle.MustBuild[OrExpression](parserOptions()...)
 	filter, err := filterParser.ParseString("", filterStr)
 	if err != nil {
 		return nil, scimerror.NewBadRequestSCIMErr(scimerror.InvalidFilter, errors.Wrapf(err, "failed to parse filter, %s", filterStr))
@@ -335,10 +366,7 @@ func ParsePath(pathStr string) (*Path, error) {
 	if len(pathStr) == 0 {
 		return nil, nil // path could be empty when doing patch
 	}
-	filterParser := participle.MustBuild[Path](
-		participle.Lexer(Lex),
-		participle.Union[Expr](Expression{}, NotExpression{}),
-	)
+	filterParser := participle.MustBuild[Path](parserOptions()...)
 	path, err := filterParser.ParseString("", pathStr)
 	if err != nil {
 		return nil, scimerror.NewBadRequestSCIMErr(scimerror.InvalidFilter, errors.Wrapf(err, "failed to parse path, %s", pathStr))

@@ -688,3 +688,23 @@ func TestParser(t *testing.T) {
 		require.Equal(t, c.Input, path.String())
 	}
 }
+
+func TestParseFilterOperatorCaseInsensitive(t *testing.T) {
+	t.Parallel()
+	for _, op := range []string{"eq", "Eq", "EQ"} {
+		parsed, err := ParseFilter(fmt.Sprintf(`userName %s "bjensen"`, op))
+		require.NoError(t, err, op)
+		expr, ok := parsed.Left.Left.(Expression)
+		require.True(t, ok, op)
+		require.Equal(t, OpEQ, expr.CompareOp, op)
+	}
+
+	parsed, err := ParseFilter(`userName eq "a" OR userName eq "b"`)
+	require.NoError(t, err)
+	require.Len(t, parsed.Right, 1)
+
+	path, err := ParsePath(`emails[type Eq "work"].value`)
+	require.NoError(t, err)
+	require.Equal(t, "emails", path.AttrName)
+	require.NotNil(t, path.Filter)
+}
