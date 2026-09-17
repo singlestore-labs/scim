@@ -30,20 +30,105 @@ func TestTokenizePattern(t *testing.T) {
 		require.False(t, re.MatchString(`123..123`), `testing number pattern for invalid extra .`)
 		require.False(t, re.MatchString(`123.12.3`), `testing number pattern for invalid extra . v2`)
 	}
-	{
-		t.Log("test CompValue regex pattern")
-		rules := Lex.Rules()["Root"]
-		curRule := rules[0]
-		require.Equal(t, "CompValue", curRule.Name, "this test should test rule 'CompValue', if not, please change index")
-		t.Logf("pattern: %s", curRule.Pattern)
-		re, err := regexp.Compile(curRule.Pattern)
-		require.NoError(t, err, "invalid tokenize regex on %s, pattern: %s", curRule.Name, curRule.Pattern)
-		require.False(t, re.MatchString(`test`), `testing [test] failed`)
-		require.True(t, re.MatchString(`"test"`), `testing ["test"] failed`)
-		require.True(t, re.MatchString(`false`), `testing [false] failed`)
-		require.True(t, re.MatchString(`true`), `testing [true] failed`)
-		require.True(t, re.MatchString(`"123"`), `testing ["123"] failed`)
-		require.True(t, re.MatchString(`123`), `testing [true] failed`)
+}
+
+// TestParseFilterKeywordsAsAttrNames covers RFC 7643 §2.1 ATTRNAME, which allows
+// any ALPHA *(nameChar) and therefore collides with every filter keyword.
+func TestParseFilterKeywordsAsAttrNames(t *testing.T) {
+	t.Parallel()
+	cases := []string{
+		// attribute names that merely start with a keyword
+		`trueName eq "x"`,
+		`nullable pr`,
+		`falseFlag eq false`,
+		`notes co "x"`,
+		`android pr`,
+		`origin eq "x"`,
+		// attribute names that are exactly a keyword
+		`true eq true`,
+		`null pr`,
+		`not pr`,
+		`and eq "x"`,
+		`or eq "x"`,
+		`eq eq "x"`,
+	}
+	for _, input := range cases {
+		_, err := ParseFilter(input)
+		require.NoError(t, err, input)
+	}
+}
+
+func TestParseFilterNotGrouping(t *testing.T) {
+	t.Parallel()
+	// The ABNF has no SP after "not"; the RFC examples and identity providers
+	// include one. Both forms, in any case, must negate the group.
+	for _, input := range []string{
+		`not (userName pr)`,
+		`not(userName pr)`,
+		`NOT (userName pr)`,
+		`Not(userName pr)`,
+	} {
+		parsed, err := ParseFilter(input)
+		require.NoError(t, err, input)
+		ne, ok := parsed.Left.Left.(NotExpression)
+		require.True(t, ok, input)
+		require.True(t, ne.Not, input)
+	}
+
+	// a bare group is the same production with zero "not"
+	parsed, err := ParseFilter(`(userName pr)`)
+	require.NoError(t, err)
+	ne, ok := parsed.Left.Left.(NotExpression)
+	require.True(t, ok)
+	require.False(t, ne.Not)
+}
+
+func TestParseFilterInvalid(t *testing.T) {
+	t.Parallel()
+	cases := []string{
+		`not`, // FILTER requires attrExp, not a bare path
+		`userName`,
+		`emails`,
+		`emails[userName]`,       // valFilter is a FILTER too
+		`not (userName)`,         // so is a grouped FILTER
+		`userName eq "x" or not`, // and every operand of a logExp
+		`userName eq`,            // compareOp requires a compValue
+		`userName pr "x"`,        // 'pr' takes no compValue
+		`userName foo "x"`,       // not a compareOp
+		`userName eq bjensen`,    // unquoted string is not a compValue
+		`not userName pr`,        // 'not' requires a group
+		`(userName pr`,           // unbalanced group
+		`userName eq "x" and`,    // dangling logical operator
+		`emails[type eq "work"`,  // unbalanced value filter
+		`active eq TRUE`,         // JSON true/false/null are lowercase only (RFC 7159)
+		`active eq False`,
+		`manager eq Null`,
+	}
+	for _, input := range cases {
+		_, err := ParseFilter(input)
+		require.Error(t, err, input)
+	}
+}
+
+func TestParseFilterCompValue(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		Input string
+		Want  CompValue
+	}{
+		{`active eq true`, "true"},
+		{`active eq false`, "false"},
+		{`manager eq null`, "null"},
+		{`count eq 12`, "12"},
+		{`count eq -12.5`, "-12.5"},
+		{`userName eq "bjensen"`, `"bjensen"`},
+	}
+	for _, c := range cases {
+		parsed, err := ParseFilter(c.Input)
+		require.NoError(t, err, c.Input)
+		expr, ok := parsed.Left.Left.(Expression)
+		require.True(t, ok, c.Input)
+		require.Equal(t, c.Want, expr.Value, c.Input)
 	}
 }
 
@@ -270,10 +355,7 @@ func TestExpression(t *testing.T) {
 		},
 	}
 
-	parser := participle.MustBuild[Expression](
-		participle.Lexer(Lex),
-		participle.Union[Expr](Expression{}, NotExpression{}),
-	)
+	parser := participle.MustBuild[Expression](parserOptions()...)
 	for _, c := range cases {
 		path, err := parser.ParseString("", c.Input)
 		require.NoError(t, err, c.Input)
@@ -707,4 +789,16 @@ func TestParseFilterOperatorCaseInsensitive(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, "emails", path.AttrName)
 	require.NotNil(t, path.Filter)
+}
+
+// A PATH is attrPath / valuePath [subAttr], so a bare attrPath is valid even
+// though it is not a valid FILTER. Only the bracketed valFilter is a FILTER.
+func TestParsePathBareAttrPath(t *testing.T) {
+	t.Parallel()
+	for _, input := range []string{"userName", "name.familyName", "emails"} {
+		_, err := ParsePath(input)
+		require.NoError(t, err, input)
+	}
+	_, err := ParsePath(`emails[userName]`)
+	require.ErrorContains(t, err, "requires a compare operator")
 }
