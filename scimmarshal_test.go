@@ -215,37 +215,81 @@ func TestUnmarshal(t *testing.T) {
 	require.ErrorContains(t, err, "required")
 }
 
-func TestListResponseHonorsExcludedAttributes(t *testing.T) {
+func TestListResponseSelectedAttributes(t *testing.T) {
 	t.Parallel()
-	resource := TestMarshalObject{
-		TestUser: TestUser{
-			Always:        "keep",
-			DefaultReturn: "visible",
-			RequiredField: "required",
-			ID:            TestResourceID{UUID: uuid.MustParse("123e4567-e89b-12d3-a456-426614174000")},
-			Members: []Members{
-				{Value: TestResourceID{UUID: uuid.MustParse("223e4567-e89b-12d3-a456-426614174000")}, Display: "member1"},
-			},
-		},
-	}
 	list := scimprotocol.ListResponse[TestMarshalObject]{
-		Resources:    []TestMarshalObject{resource},
+		Resources: []TestMarshalObject{{
+			TestUser: TestUser{
+				Always:        "keep",
+				DefaultReturn: "visible",
+				RequiredField: "required",
+				ID:            TestResourceID{UUID: uuid.MustParse("123e4567-e89b-12d3-a456-426614174000")},
+				Members: []Members{
+					{Value: TestResourceID{UUID: uuid.MustParse("223e4567-e89b-12d3-a456-426614174000")}, Display: "member1"},
+				},
+			},
+		}},
 		StartIndex:   1,
 		ItemsPerPage: 1,
 		TotalResults: 1,
 	}
 
-	encoded, err := scimprotocol.MarshalWithSelectedAttr(list, []string{"members"}, true)
-	require.NoError(t, err)
+	cases := map[string]struct {
+		selectedAttr    []string
+		excludeSelected bool
+		expectResource  string
+	}{
+		// baseline: without selection every default-returned attribute is present,
+		// which is what makes the two cases below meaningful
+		"no selection": {
+			expectResource: `{
+				"schemas": ["urn:ietf:params:scim:schemas:core:2.0:User"],
+				"id": "123e4567-e89b-12d3-a456-426614174000",
+				"always": "keep",
+				"defaultReturn": "visible",
+				"keepEmptyReturn": "",
+				"requiredField": "required",
+				"members": [{"value": "223e4567-e89b-12d3-a456-426614174000", "display": "member1"}]
+			}`,
+		},
+		// attributes=members: only 'members' (plus returned=always) survives,
+		// 'defaultReturn' and 'requiredField' are dropped even though they have values
+		"select members": {
+			selectedAttr: []string{"members"},
+			expectResource: `{
+				"schemas": ["urn:ietf:params:scim:schemas:core:2.0:User"],
+				"id": "123e4567-e89b-12d3-a456-426614174000",
+				"always": "keep",
+				"members": [{"value": "223e4567-e89b-12d3-a456-426614174000", "display": "member1"}]
+			}`,
+		},
+		// excludedAttributes=members: the mirror image, 'members' is the only loss
+		"exclude members": {
+			selectedAttr:    []string{"members"},
+			excludeSelected: true,
+			expectResource: `{
+				"schemas": ["urn:ietf:params:scim:schemas:core:2.0:User"],
+				"id": "123e4567-e89b-12d3-a456-426614174000",
+				"always": "keep",
+				"defaultReturn": "visible",
+				"keepEmptyReturn": "",
+				"requiredField": "required"
+			}`,
+		},
+	}
 
-	var decoded map[string]any
-	require.NoError(t, json.Unmarshal(encoded, &decoded))
-	resources, ok := decoded["Resources"].([]any)
-	require.True(t, ok)
-	require.Len(t, resources, 1)
-	item, ok := resources[0].(map[string]any)
-	require.True(t, ok)
-	_, hasMembers := item["members"]
-	require.False(t, hasMembers, string(encoded))
-	require.Equal(t, "visible", item["defaultReturn"])
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			encoded, err := scimprotocol.MarshalWithSelectedAttr(list, tc.selectedAttr, tc.excludeSelected)
+			require.NoError(t, err)
+
+			var decoded struct {
+				Resources []json.RawMessage `json:"Resources"`
+			}
+			require.NoError(t, json.Unmarshal(encoded, &decoded))
+			require.Len(t, decoded.Resources, 1, string(encoded))
+			require.JSONEq(t, tc.expectResource, string(decoded.Resources[0]))
+		})
+	}
 }
