@@ -16,7 +16,7 @@ import (
 // Note: if you choose to have SCIMMarshaler or SCIMUnmarshaler, means you take full control of marshal.
 // And the patch and filter may not work as expected.
 type SCIMMarshaler interface {
-	MarshalSCIM() ([]byte, error)
+	MarshalSCIM(selectedAttr []string, excludeSelected bool) ([]byte, error)
 }
 
 type SCIMUnmarshaler interface {
@@ -49,9 +49,8 @@ func MarshalWithSelectedAttr(obj any, selectedAttr []string, excludeSelected boo
 		return obj.([]byte), nil
 	}
 
-	resource, customizedMarshal := obj.(SCIMMarshaler)
-	if customizedMarshal {
-		return resource.MarshalSCIM()
+	if resource, customizedMarshal := obj.(SCIMMarshaler); customizedMarshal {
+		return resource.MarshalSCIM(selectedAttr, excludeSelected)
 	}
 
 	if objT.Kind() == reflect.Array || objT.Kind() == reflect.Slice {

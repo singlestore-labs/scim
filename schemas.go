@@ -18,7 +18,7 @@ type Schema struct {
 
 var _ SCIMMarshaler = Schema{}
 
-func (s Schema) MarshalSCIM() ([]byte, error) {
+func (s Schema) MarshalSCIM([]string, bool) ([]byte, error) {
 	return json.Marshal(s)
 }
 

@@ -85,7 +85,7 @@ func TestSCIMServer(t *testing.T) {
 				ItemsPerPage: len(expectResources),
 				TotalResults: len(expectResources),
 			}
-			expectJson, err := expectListResp.MarshalSCIM()
+			expectJson, err := expectListResp.MarshalSCIM(nil, false)
 			require.NoError(t, err)
 			usersJSON, getListCode := requestEndpointHelper(t, r, apiKey,
 				http.MethodGet, baseURL+"/Users", nil)
