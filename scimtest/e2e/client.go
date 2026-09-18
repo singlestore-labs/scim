@@ -436,7 +436,3 @@ func (f *DataFactory) unique(kind string) string {
 		}
 	}
 }
-
-func intPointer(value int) *int {
-	return &value
-}

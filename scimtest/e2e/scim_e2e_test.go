@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"testing"
 
+	"github.com/singlestore-labs/scim/util"
 	"github.com/stretchr/testify/require"
 )
 
@@ -139,7 +140,7 @@ func TestUserPagination(t *testing.T) {
 		client.MustCreateUser(client.Data.User())
 	}
 
-	client.ListUsers(ListOpts{StartIndex: 2, Count: intPointer(2)}).
+	client.ListUsers(ListOpts{StartIndex: 2, Count: util.ToPtr(2)}).
 		RequireStatus(http.StatusOK).
 		RequirePath("totalResults", 5).
 		RequirePath("itemsPerPage", 2).

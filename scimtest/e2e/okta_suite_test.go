@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"testing"
 
+	"github.com/singlestore-labs/scim/util"
 	"github.com/stretchr/testify/require"
 )
 
@@ -19,7 +20,7 @@ func TestOktaSCIM20Suite(t *testing.T) {
 	t.Run("GET Users pagination for connection and import", func(t *testing.T) {
 		t.Parallel()
 		h := NewTestClient(t)
-		h.ListUsers(ListOpts{StartIndex: 1, Count: intPointer(2)}).
+		h.ListUsers(ListOpts{StartIndex: 1, Count: util.ToPtr(2)}).
 			RequireStatus(http.StatusOK).
 			RequireJSONEq(`{
 				"schemas": ["urn:ietf:params:scim:api:messages:2.0:ListResponse"],
@@ -30,7 +31,7 @@ func TestOktaSCIM20Suite(t *testing.T) {
 			}`)
 		h.MustCreateUser(h.Data.User())
 		h.MustCreateUser(h.Data.User())
-		h.ListUsers(ListOpts{StartIndex: 1, Count: intPointer(100)}).
+		h.ListUsers(ListOpts{StartIndex: 1, Count: util.ToPtr(100)}).
 			RequireStatus(http.StatusOK).
 			RequirePath("totalResults", 2)
 	})
@@ -38,7 +39,7 @@ func TestOktaSCIM20Suite(t *testing.T) {
 	t.Run("GET Groups pagination for connection", func(t *testing.T) {
 		t.Parallel()
 		h := NewTestClient(t)
-		h.ListGroups(ListOpts{StartIndex: 1, Count: intPointer(100)}).
+		h.ListGroups(ListOpts{StartIndex: 1, Count: util.ToPtr(100)}).
 			RequireStatus(http.StatusOK).
 			RequirePath("totalResults", 0).
 			RequireJSONContains(`{"schemas":["urn:ietf:params:scim:api:messages:2.0:ListResponse"],"Resources":[]}`)
@@ -56,7 +57,7 @@ func TestOktaSCIM20Suite(t *testing.T) {
 			RequireJSONContains(want).
 			User()
 
-		h.ListUsers(ListOpts{Filter: filterExpr("userName", "eq", input.UserName), StartIndex: 1, Count: intPointer(100)}).
+		h.ListUsers(ListOpts{Filter: filterExpr("userName", "eq", input.UserName), StartIndex: 1, Count: util.ToPtr(100)}).
 			RequireStatus(http.StatusOK).
 			RequirePath("totalResults", 1).
 			RequirePath("Resources.0.id", created.ID).
@@ -109,7 +110,7 @@ func TestOktaSCIM20Suite(t *testing.T) {
 			RequireJSONContains(map[string]any{"displayName": input.DisplayName}).
 			Group()
 
-		h.ListGroups(ListOpts{Filter: filterExpr("displayName", "eq", input.DisplayName), StartIndex: 1, Count: intPointer(100)}).
+		h.ListGroups(ListOpts{Filter: filterExpr("displayName", "eq", input.DisplayName), StartIndex: 1, Count: util.ToPtr(100)}).
 			RequireStatus(http.StatusOK).
 			RequirePath("totalResults", 1).
 			RequirePath("Resources.0.id", group.ID)
