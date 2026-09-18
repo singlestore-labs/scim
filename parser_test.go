@@ -99,8 +99,11 @@ func TestParseFilterInvalid(t *testing.T) {
 		`not userName pr`,        // 'not' requires a group
 		`(userName pr`,           // unbalanced group
 		`userName eq "x" and`,    // dangling logical operator
-		`emails[type eq "work"`,  // unbalanced value filter
-		`active eq TRUE`,         // JSON true/false/null are lowercase only (RFC 7159)
+		`emails[type eq "work"`,           // unbalanced value filter
+		`emails[type eq "work"].value`,    // valuePath [subAttr] is a PATH, not a FILTER
+		`not (emails[type eq "work"].value)`,
+		`userName eq "x" or emails[type eq "work"].value`,
+		`active eq TRUE`, // JSON true/false/null are lowercase only (RFC 7159)
 		`active eq False`,
 		`manager eq Null`,
 	}
@@ -795,10 +798,15 @@ func TestParseFilterOperatorCaseInsensitive(t *testing.T) {
 // though it is not a valid FILTER. Only the bracketed valFilter is a FILTER.
 func TestParsePathBareAttrPath(t *testing.T) {
 	t.Parallel()
-	for _, input := range []string{"userName", "name.familyName", "emails"} {
+	for _, input := range []string{"userName", "name.familyName", "emails", `emails[type eq "work"].value`} {
 		_, err := ParsePath(input)
 		require.NoError(t, err, input)
 	}
 	_, err := ParsePath(`emails[userName]`)
 	require.ErrorContains(t, err, "requires a compare operator")
+
+	_, err = ParseFilter(`emails[type eq "work"]`)
+	require.NoError(t, err)
+	_, err = ParseFilter(`emails[type eq "work"].value eq "x"`)
+	require.NoError(t, err)
 }

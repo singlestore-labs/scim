@@ -308,7 +308,13 @@ func (e Expression) ToSqlizer(sg SQLGenerator, not bool) (sq.Sqlizer, error) {
 // attrExp (operator required) or valuePath (attrPath "[" valFilter "]"), not an
 // attribute name alone. The grammar keeps the operator optional so valuePath
 // can omit it; this is the rest of that distinction.
+//
+// valuePath [subAttr] is a PATH, not a FILTER. emails[type eq "work"].value is
+// valid for PATCH and for attrExp (... eq "x"), but not as a standalone filter.
 func (e Expression) validate() error {
+	if e.CompareOp == "" && e.Path.SubAttrName != "" {
+		return errors.Errorf("value path with sub-attribute %q is a PATH, not a FILTER", e.Path.SubAttrName)
+	}
 	if e.CompareOp == "" && e.Path.Filter == nil {
 		return errors.Errorf("filter on attribute %q requires a compare operator or a value path [...]", e.Path.AttrName)
 	}
