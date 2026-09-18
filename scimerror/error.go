@@ -71,12 +71,18 @@ func NewSCIMErr(status int, e error) error {
 // NewBadRequestSCIMErr returns SCIMErr with SCIMErrorType and fixed bad request status code
 // https://datatracker.ietf.org/doc/html/rfc7644#section-3.12
 func NewBadRequestSCIMErr(t SCIMErrorType, e error) error {
+	return NewSCIMErrWithType(http.StatusBadRequest, t, e)
+}
+
+// NewSCIMErrWithType returns a SCIM error with both HTTP status and scimType
+// (for example uniqueness -> 409 Conflict).
+func NewSCIMErrWithType(status int, t SCIMErrorType, e error) error {
 	if e == nil {
 		return nil
 	}
 	return &SCIMError{
 		Detail:   e,
-		Status:   http.StatusBadRequest,
+		Status:   status,
 		scimType: t,
 	}
 }
