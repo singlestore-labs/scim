@@ -199,6 +199,24 @@ func TestPathParser(t *testing.T) {
 				AttrName: "employeeNumber",
 			},
 		},
+		{
+			`emails[type eq "work"].value`,
+			&Path{
+				AttrName:    "emails",
+				SubAttrName: "value",
+				Filter: &OrExpression{
+					Left: &AndTerm{
+						Left: Expression{
+							Path: Path{
+								AttrName: "type",
+							},
+							CompareOp: "eq",
+							Value:     `"work"`,
+						},
+					},
+				},
+			},
+		},
 	}
 	for _, c := range cases {
 		path, err := ParsePath(c.Input)
@@ -356,6 +374,28 @@ func TestExpression(t *testing.T) {
 				},
 			},
 		},
+		{
+			`emails[type eq "work"].value eq "x"`,
+			&Expression{
+				Path: Path{
+					AttrName:    "emails",
+					SubAttrName: "value",
+					Filter: &OrExpression{
+						Left: &AndTerm{
+							Left: Expression{
+								Path: Path{
+									AttrName: "type",
+								},
+								CompareOp: "eq",
+								Value:     `"work"`,
+							},
+						},
+					},
+				},
+				CompareOp: "eq",
+				Value:     `"x"`,
+			},
+		},
 	}
 
 	parser := participle.MustBuild[Expression](parserOptions()...)
@@ -382,6 +422,55 @@ func TestParser(t *testing.T) {
 						},
 						CompareOp: "eq",
 						Value:     `"bjensen"`,
+					},
+				},
+			},
+		},
+		{
+			`emails[type eq "work"]`,
+			&OrExpression{
+				Left: &AndTerm{
+					Left: Expression{
+						Path: Path{
+							AttrName: "emails",
+							Filter: &OrExpression{
+								Left: &AndTerm{
+									Left: Expression{
+										Path: Path{
+											AttrName: "type",
+										},
+										CompareOp: "eq",
+										Value:     `"work"`,
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			`emails[type eq "work"].value eq "x"`,
+			&OrExpression{
+				Left: &AndTerm{
+					Left: Expression{
+						Path: Path{
+							AttrName:    "emails",
+							SubAttrName: "value",
+							Filter: &OrExpression{
+								Left: &AndTerm{
+									Left: Expression{
+										Path: Path{
+											AttrName: "type",
+										},
+										CompareOp: "eq",
+										Value:     `"work"`,
+									},
+								},
+							},
+						},
+						CompareOp: "eq",
+						Value:     `"x"`,
 					},
 				},
 			},
@@ -804,9 +893,4 @@ func TestParsePathBareAttrPath(t *testing.T) {
 	}
 	_, err := ParsePath(`emails[userName]`)
 	require.ErrorContains(t, err, "requires a compare operator")
-
-	_, err = ParseFilter(`emails[type eq "work"]`)
-	require.NoError(t, err)
-	_, err = ParseFilter(`emails[type eq "work"].value eq "x"`)
-	require.NoError(t, err)
 }
