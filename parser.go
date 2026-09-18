@@ -238,16 +238,12 @@ func (at *AndTerm) validate() error {
 	return nil
 }
 
-// Expression is an attribute expression. 'pr' takes no value while every other
-// operator requires one, so the two forms are separate alternatives:
+// Expression is an attribute expression. 
 //
 //	attrExp = (attrPath SP "pr") / (attrPath SP compareOp SP compValue)
 type Expression struct {
 	Path Path `parser:"@@"`
-	// Operators and the JSON keywords are Ident tokens, so they are matched as
-	// literals by position here instead of being reserved by the lexer.
-	//
-	// Operator is optional so a valuePath FILTER can be Path "[" valFilter "]"
+	// Operator is optional that a valuePath FILTER can be Path "[" valFilter "]"
 	// with no compareOp after ']'.
 	CompareOp CompareOp `parser:"(Whitespace (@'pr' | (@('eq'|'ne'|'co'|'sw'|'ew'|'gt'|'lt'|'ge'|'le')"`
 	Value     CompValue `parser:"  Whitespace @(String|Number|'true'|'false'|'null'))))?"`
@@ -441,12 +437,11 @@ func (ne NotExpression) validate() error {
 func parserOptions() []participle.Option {
 	return []participle.Option{
 		participle.Lexer(Lex),
-		// order matters: 'not' is Ident-shaped, so try the grouping form before
+		// order matters: 'not' is Ident-shaped, try the grouping form first before
 		// falling back to reading it as an attribute name.
 		participle.Union[Expr](NotExpression{}, Expression{}),
 		// RFC 7644 §3.4.2.2: attribute names and operators are case-insensitive.
 		participle.CaseInsensitive("Ident"),
-		// Keywords double as attribute names, so alternatives must backtrack.
 		participle.UseLookahead(3),
 	}
 }

@@ -36,32 +36,65 @@ func TestTokenizePattern(t *testing.T) {
 // any ALPHA *(nameChar) and therefore collides with every filter keyword.
 func TestParseFilterKeywordsAsAttrNames(t *testing.T) {
 	t.Parallel()
-	cases := []string{
-		// attribute names that merely start with a keyword
+	for _, input := range []string{
 		`trueName eq "x"`,
 		`nullable pr`,
 		`falseFlag eq false`,
 		`notes co "x"`,
 		`android pr`,
 		`origin eq "x"`,
-		// attribute names that are exactly a keyword
-		`true eq true`,
-		`null pr`,
-		`not pr`,
-		`and eq "x"`,
-		`or eq "x"`,
-		`eq eq "x"`,
-	}
-	for _, input := range cases {
+	} {
 		_, err := ParseFilter(input)
 		require.NoError(t, err, input)
+	}
+
+	// A name that is exactly a keyword must still parse as attrPath, not as an operator.
+	cases := []struct {
+		Input string
+		Want  *OrExpression
+	}{
+		{`not pr`, filterPR("not")},
+		{`null pr`, filterPR("null")},
+		{`eq eq "x"`, filterCmp("eq", OpEQ, `"x"`)},
+		{`and eq "x"`, filterCmp("and", OpEQ, `"x"`)},
+		{`or eq "x"`, filterCmp("or", OpEQ, `"x"`)},
+		{`true eq true`, filterCmp("true", OpEQ, "true")},
+	}
+	for _, c := range cases {
+		parsed, err := ParseFilter(c.Input)
+		require.NoError(t, err, c.Input)
+		require.Equal(t, c.Want, parsed, c.Input)
+		require.Equal(t, c.Input, parsed.String(), c.Input)
 	}
 }
 
 func TestParseFilterNotGrouping(t *testing.T) {
 	t.Parallel()
-	// The ABNF has no SP after "not"; the RFC examples and identity providers
-	// include one. Both forms, in any case, must negate the group.
+	userNamePR := Expression{
+		Path:      Path{AttrName: "userName"},
+		CompareOp: OpPR,
+	}
+	wantNot := &OrExpression{
+		Left: &AndTerm{
+			Left: NotExpression{
+				Not: true,
+				Group: OrExpression{
+					Left: &AndTerm{Left: userNamePR},
+				},
+			},
+		},
+	}
+	wantGroup := &OrExpression{
+		Left: &AndTerm{
+			Left: NotExpression{
+				Group: OrExpression{
+					Left: &AndTerm{Left: userNamePR},
+				},
+			},
+		},
+	}
+
+	// The ABNF has no SP after "not"; RFC examples and identity providers include one.
 	for _, input := range []string{
 		`not (userName pr)`,
 		`not(userName pr)`,
@@ -70,17 +103,14 @@ func TestParseFilterNotGrouping(t *testing.T) {
 	} {
 		parsed, err := ParseFilter(input)
 		require.NoError(t, err, input)
-		ne, ok := parsed.Left.Left.(NotExpression)
-		require.True(t, ok, input)
-		require.True(t, ne.Not, input)
+		require.Equal(t, wantNot, parsed, input)
+		require.Equal(t, `not (userName pr)`, parsed.String(), input)
 	}
 
-	// a bare group is the same production with zero "not"
 	parsed, err := ParseFilter(`(userName pr)`)
 	require.NoError(t, err)
-	ne, ok := parsed.Left.Left.(NotExpression)
-	require.True(t, ok)
-	require.False(t, ne.Not)
+	require.Equal(t, wantGroup, parsed)
+	require.Equal(t, `(userName pr)`, parsed.String())
 }
 
 func TestParseFilterInvalid(t *testing.T) {
@@ -89,18 +119,18 @@ func TestParseFilterInvalid(t *testing.T) {
 		`not`, // FILTER requires attrExp, not a bare path
 		`userName`,
 		`emails`,
-		`emails[userName]`,       // valFilter is a FILTER too
-		`not (userName)`,         // so is a grouped FILTER
-		`userName eq "x" or not`, // and every operand of a logExp
-		`userName eq`,            // compareOp requires a compValue
-		`userName pr "x"`,        // 'pr' takes no compValue
-		`userName foo "x"`,       // not a compareOp
-		`userName eq bjensen`,    // unquoted string is not a compValue
-		`not userName pr`,        // 'not' requires a group
-		`(userName pr`,           // unbalanced group
-		`userName eq "x" and`,    // dangling logical operator
-		`emails[type eq "work"`,           // unbalanced value filter
-		`emails[type eq "work"].value`,    // valuePath [subAttr] is a PATH, not a FILTER
+		`emails[userName]`,             // valFilter is a FILTER too
+		`not (userName)`,               // so is a grouped FILTER
+		`userName eq "x" or not`,       // and every operand of a logExp
+		`userName eq`,                  // compareOp requires a compValue
+		`userName pr "x"`,              // 'pr' takes no compValue
+		`userName foo "x"`,             // not a compareOp
+		`userName eq bjensen`,          // unquoted string is not a compValue
+		`not userName pr`,              // 'not' requires a group
+		`(userName pr`,                 // unbalanced group
+		`userName eq "x" and`,          // dangling logical operator
+		`emails[type eq "work"`,        // unbalanced value filter
+		`emails[type eq "work"].value`, // valuePath [subAttr] is a PATH, not a FILTER
 		`not (emails[type eq "work"].value)`,
 		`userName eq "x" or emails[type eq "work"].value`,
 		`active eq TRUE`, // JSON true/false/null are lowercase only (RFC 7159)
@@ -132,6 +162,28 @@ func TestParseFilterCompValue(t *testing.T) {
 		expr, ok := parsed.Left.Left.(Expression)
 		require.True(t, ok, c.Input)
 		require.Equal(t, c.Want, expr.Value, c.Input)
+	}
+}
+
+// eq/ne/co/sw/pr trees are in TestAllExpressionsParser. These cover the rest of
+// RFC 7644 §3.4.2.2 attribute operators.
+func TestParseFilterCompareOpTrees(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		Input string
+		Want  *OrExpression
+	}{
+		{`userName ew "sen"`, filterCmp("userName", OpEW, `"sen"`)},
+		{`meta.lastModified gt "2011-05-13T04:42:34Z"`, filterSubCmp("meta", "lastModified", OpGT, `"2011-05-13T04:42:34Z"`)},
+		{`count ge 10`, filterCmp("count", OpGE, "10")},
+		{`count lt 10`, filterCmp("count", OpLT, "10")},
+		{`count le 10`, filterCmp("count", OpLE, "10")},
+	}
+	for _, c := range cases {
+		parsed, err := ParseFilter(c.Input)
+		require.NoError(t, err, c.Input)
+		require.Equal(t, c.Want, parsed, c.Input)
+		require.Equal(t, c.Input, parsed.String(), c.Input)
 	}
 }
 
@@ -406,7 +458,7 @@ func TestExpression(t *testing.T) {
 	}
 }
 
-func TestParser(t *testing.T) {
+func TestAllExpressionsParser(t *testing.T) {
 	t.Parallel()
 	cases := []struct {
 		Input string
@@ -893,4 +945,42 @@ func TestParsePathBareAttrPath(t *testing.T) {
 	}
 	_, err := ParsePath(`emails[userName]`)
 	require.ErrorContains(t, err, "requires a compare operator")
+}
+
+func filterPR(attr string) *OrExpression {
+	return &OrExpression{
+		Left: &AndTerm{
+			Left: Expression{
+				Path:      Path{AttrName: attr},
+				CompareOp: OpPR,
+			},
+		},
+	}
+}
+
+func filterCmp(attr string, op CompareOp, value CompValue) *OrExpression {
+	return &OrExpression{
+		Left: &AndTerm{
+			Left: Expression{
+				Path:      Path{AttrName: attr},
+				CompareOp: op,
+				Value:     value,
+			},
+		},
+	}
+}
+
+func filterSubCmp(attr, sub string, op CompareOp, value CompValue) *OrExpression {
+	return &OrExpression{
+		Left: &AndTerm{
+			Left: Expression{
+				Path: Path{
+					AttrName:    attr,
+					SubAttrName: sub,
+				},
+				CompareOp: op,
+				Value:     value,
+			},
+		},
+	}
 }
