@@ -16,13 +16,13 @@ import (
 // Filter Parse doc: https://datatracker.ietf.org/doc/html/rfc7644#section-3.4.2.2
 
 const (
-	uriPattrn     = `urn:ietf:params:scim:schemas:(core|extension:[^:]+):2\.0(:[^:]+)`
+	uriPattern    = `urn:ietf:params:scim:schemas:(core|extension:[^:]+):2\.0(:[^:]+)`
 	numberPattern = `-?\d+(?:\.\d+)?(?:[eE][-+]?\d+)?`
 	stringPattern = `"(?:[^\\"]|\\.)*"`
 	// stringPattern = `"[^\\"]*"`
 )
 
-var URIPattenRegexp = regexp.MustCompile(uriPattrn)
+var URIPattenRegexp = regexp.MustCompile(uriPattern)
 
 // Lex tokenizes shapes only, never keywords.
 //
@@ -33,7 +33,7 @@ var Lex = lexer.MustSimple([]lexer.SimpleRule{
 	// 'false', 'null' and 'true' are Ident-shaped and handled in the grammar.
 	{Name: "String", Pattern: stringPattern},
 	{Name: "Number", Pattern: numberPattern},
-	{Name: "URI", Pattern: uriPattrn},
+	{Name: "URI", Pattern: uriPattern},
 	{Name: "Ident", Pattern: `[a-zA-Z][-a-zA-Z0-9_]*`}, // attribute name, compare operator, logical operator
 	{Name: "(", Pattern: `\(`},
 	{Name: ")", Pattern: `\)`},
@@ -43,8 +43,6 @@ var Lex = lexer.MustSimple([]lexer.SimpleRule{
 	{Name: "Dot", Pattern: `\.`},
 	{Name: "Colon", Pattern: `\:`},
 })
-
-type CompareOp string
 
 // RFC 7644 §3.4.2.2 attribute operators. The parser tag on Expression is
 // the allow-list; these constants are for Go comparisons after Capture.
@@ -60,6 +58,8 @@ const (
 	OpGE CompareOp = "ge"
 	OpLE CompareOp = "le"
 )
+
+type CompareOp string
 
 var _ participle.Capture = (*CompareOp)(nil)
 
@@ -79,8 +79,8 @@ type CompValue string
 var _ participle.Capture = (*CompValue)(nil)
 
 // Capture stores the raw token. JSON keywords must already be lowercase
-// (RFC 7159). Ident matching is case-insensitive for names and operators, so
-// TRUE would otherwise parse as the keyword 'true'.
+// (RFC 7159). Ident matching is case-insensitive, so we throw error here when the value is not lowercase.
+// Like, `TRUE` would pass Ident matching but error here on capture.
 func (c *CompValue) Capture(values []string) error {
 	value := values[0]
 	if lower := strings.ToLower(value); lower == "true" || lower == "false" || lower == "null" {
@@ -112,8 +112,8 @@ type SQLGenerator interface {
 type Expr interface {
 	expr()
 	RedactedString() string
-	// validate enforces the RFC 7644 filter rules that the grammar cannot
-	// express. See [Expression.validate].
+	// validate() helps restrict only filter while this parser allows both path and filter.
+	// Like, `emails[userName]` is a valid path but not a valid filter.
 	validate() error
 	Common
 }
@@ -238,13 +238,12 @@ func (at *AndTerm) validate() error {
 	return nil
 }
 
-// Expression is an attribute expression. 
+// Expression is an attribute expression.
 //
 //	attrExp = (attrPath SP "pr") / (attrPath SP compareOp SP compValue)
 type Expression struct {
 	Path Path `parser:"@@"`
-	// Operator is optional that a valuePath FILTER can be Path "[" valFilter "]"
-	// with no compareOp after ']'.
+	// Operator is optional, like `emails[type eq "work"]`
 	CompareOp CompareOp `parser:"(Whitespace (@'pr' | (@('eq'|'ne'|'co'|'sw'|'ew'|'gt'|'lt'|'ge'|'le')"`
 	Value     CompValue `parser:"  Whitespace @(String|Number|'true'|'false'|'null'))))?"`
 }
@@ -388,8 +387,7 @@ func (p *Path) GetNodes(coreSchemaID string) *Node {
 //	FILTER = ... / *1"not" "(" FILTER ")"
 //
 // The ABNF puts no SP after "not" while the RFC examples and identity providers
-// send "not (", so both are accepted. 'not' is an Ident token rather than a
-// reserved word, which keeps an attribute named "not" parseable.
+// send "not (", so both are accepted.
 type NotExpression struct {
 	Not   bool         `parser:"(@'not' Whitespace?)?"`
 	Group OrExpression `parser:"'(' Whitespace? @@ Whitespace? ')'"`
