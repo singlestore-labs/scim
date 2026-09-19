@@ -40,7 +40,7 @@ func NewServer(trace util.Trace, storage *Storage) Server {
 			},
 		},
 		config: scimprotocol.Config{
-			DefaultPageSize:   100,
+			DefaultPageSize:    100,
 			PatchSupported:     true,
 			BulkSupported:      false,
 			BulkMaxOperations:  1000,
