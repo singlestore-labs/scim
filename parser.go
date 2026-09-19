@@ -16,30 +16,81 @@ import (
 // Filter Parse doc: https://datatracker.ietf.org/doc/html/rfc7644#section-3.4.2.2
 
 const (
-	uriPattrn     = `urn:ietf:params:scim:schemas:(core|extension:[^:]+):2\.0(:[^:]+)`
+	uriPattern    = `urn:ietf:params:scim:schemas:(core|extension:[^:]+):2\.0(:[^:]+)`
 	numberPattern = `-?\d+(?:\.\d+)?(?:[eE][-+]?\d+)?`
 	stringPattern = `"(?:[^\\"]|\\.)*"`
 	// stringPattern = `"[^\\"]*"`
 )
 
-var URIPattenRegexp = regexp.MustCompile(uriPattrn)
+var URIPattenRegexp = regexp.MustCompile(uriPattern)
 
-// NOTE:
-//   - Should avoid conflict tokenizer, and order matters.
+// Lex tokenizes shapes only, never keywords.
+//
+// Rules are distinguishable by their first character, so ordering is only
+// significant for URI, which must precede Ident.
 var Lex = lexer.MustSimple([]lexer.SimpleRule{
-	// compValue = false / null / true / number / string; rules from JSON (RFC 7159)
-	{Name: "CompValue", Pattern: fmt.Sprintf(`(?:false|null|true|%s|%s)`, numberPattern, stringPattern)},
+	// compValue = false / null / true / number / string; rules from JSON (RFC 7159).
+	// 'false', 'null' and 'true' are Ident-shaped and handled in the grammar.
+	{Name: "String", Pattern: stringPattern},
+	{Name: "Number", Pattern: numberPattern},
+	{Name: "URI", Pattern: uriPattern},
+	{Name: "Ident", Pattern: `[a-zA-Z][-a-zA-Z0-9_]*`}, // attribute name, compare operator, logical operator
 	{Name: "(", Pattern: `\(`},
 	{Name: ")", Pattern: `\)`},
 	{Name: "[", Pattern: `\[`},
 	{Name: "]", Pattern: `\]`},
-	{Name: "Not", Pattern: `(?i)not[ \t]+`},
-	{Name: "URI", Pattern: uriPattrn},
-	{Name: "Ident", Pattern: `[a-zA-Z][-a-zA-Z0-9_]*`}, // Case-insensitive: attribute name, compare operators, logic operators
 	{Name: "Whitespace", Pattern: `[ \t]+`},
 	{Name: "Dot", Pattern: `\.`},
 	{Name: "Colon", Pattern: `\:`},
 })
+
+// RFC 7644 §3.4.2.2 attribute operators. The parser tag on Expression is
+// the allow-list; these constants are for Go comparisons after Capture.
+const (
+	OpPR CompareOp = "pr"
+	OpEQ CompareOp = "eq"
+	OpNE CompareOp = "ne"
+	OpCO CompareOp = "co"
+	OpSW CompareOp = "sw"
+	OpEW CompareOp = "ew"
+	OpGT CompareOp = "gt"
+	OpLT CompareOp = "lt"
+	OpGE CompareOp = "ge"
+	OpLE CompareOp = "le"
+)
+
+type CompareOp string
+
+var _ participle.Capture = (*CompareOp)(nil)
+
+// Capture normalizes the operator, which RFC 7644 §3.4.2.2 defines as
+// case-insensitive, so callers can compare against the constants above.
+func (c *CompareOp) Capture(values []string) error {
+	*c = CompareOp(strings.ToLower(values[0]))
+	return nil
+}
+
+// CompValue holds the raw JSON literal of a comparison value, quotes included
+// for strings, so that it stays consumable by json.Unmarshal.
+//
+//	compValue = false / null / true / number / string ; rules from JSON (RFC 7159)
+type CompValue string
+
+var _ participle.Capture = (*CompValue)(nil)
+
+// Capture stores the raw token. JSON keywords must already be lowercase
+// (RFC 7159). Ident matching is case-insensitive, so we throw error here when the value is not lowercase.
+// Like, `TRUE` would pass Ident matching but error here on capture.
+func (c *CompValue) Capture(values []string) error {
+	value := values[0]
+	if lower := strings.ToLower(value); lower == "true" || lower == "false" || lower == "null" {
+		if value != lower {
+			return errors.Errorf("JSON keyword %q must be lowercase", value)
+		}
+	}
+	*c = CompValue(value)
+	return nil
+}
 
 // SQLGenerator is a interface used to convert expression to sql with SICM tag
 type SQLGenerator interface {
@@ -61,6 +112,9 @@ type SQLGenerator interface {
 type Expr interface {
 	expr()
 	RedactedString() string
+	// validate() helps restrict only filter while this parser allows both path and filter.
+	// Like, `emails[userName]` is a valid path but not a valid filter.
+	validate() error
 	Common
 }
 
@@ -112,6 +166,21 @@ func (le OrExpression) Eval(v reflect.Value, azureAdd bool) (bool, error) {
 	return value, nil
 }
 
+func (oe *OrExpression) validate() error {
+	if oe == nil {
+		return nil
+	}
+	if err := oe.Left.validate(); err != nil {
+		return err
+	}
+	for _, term := range oe.Right {
+		if err := term.validate(); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 type AndTerm struct {
 	Left  Expr   `parser:"@@"` // Expr will be recursive parse either Expression or Not(Group)
 	Right []Expr `parser:"(Whitespace 'and' Whitespace @@)*"`
@@ -152,35 +221,31 @@ func (ot AndTerm) Eval(v reflect.Value, azureAdd bool) (bool, error) {
 	return value, nil
 }
 
-type CompareOp string
-
-// RFC 7644 §3.4.2.2 attribute operators. The parser tag on Expression is
-// the allow-list; these constants are for Go comparisons after Capture.
-const (
-	OpPR CompareOp = "pr"
-	OpEQ CompareOp = "eq"
-	OpNE CompareOp = "ne"
-	OpCO CompareOp = "co"
-	OpSW CompareOp = "sw"
-	OpEW CompareOp = "ew"
-	OpGT CompareOp = "gt"
-	OpLT CompareOp = "lt"
-	OpGE CompareOp = "ge"
-	OpLE CompareOp = "le"
-)
-
-var _ participle.Capture = (*CompareOp)(nil)
-
-func (c *CompareOp) Capture(values []string) error {
-	*c = CompareOp(strings.ToLower(values[0]))
+func (at *AndTerm) validate() error {
+	if at == nil {
+		return nil
+	}
+	if at.Left != nil {
+		if err := at.Left.validate(); err != nil {
+			return err
+		}
+	}
+	for _, expr := range at.Right {
+		if err := expr.validate(); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
-type Expression struct { // compare expression
+// Expression is an attribute expression.
+//
+//	attrExp = (attrPath SP "pr") / (attrPath SP compareOp SP compValue)
+type Expression struct {
 	Path Path `parser:"@@"`
-	// check CompareOp in grammar to avoid tokenize conflict
+	// Operator is optional, like `emails[type eq "work"]`
 	CompareOp CompareOp `parser:"(Whitespace (@'pr' | (@('eq'|'ne'|'co'|'sw'|'ew'|'gt'|'lt'|'ge'|'le')"`
-	Value     string    `parser:"  Whitespace @CompValue)))?"`
+	Value     CompValue `parser:"  Whitespace @(String|Number|'true'|'false'|'null'))))?"`
 }
 
 var _ Expr = (*Expression)(nil)
@@ -222,7 +287,7 @@ func (e Expression) Eval(v reflect.Value, azureAdd bool) (bool, error) {
 
 	// special handle for `schemas eq "urn:ietf:params:scim:schemas:extension:enterprise:2.0:User"`
 	if e.Path.AttrName == "schemas" {
-		return schemaFilterHelper(coreSchema, extensions, e.Value)
+		return schemaFilterHelper(coreSchema, extensions, string(e.Value))
 	}
 
 	// will filling default schema, MUST have schema for the later filter function
@@ -232,6 +297,23 @@ func (e Expression) Eval(v reflect.Value, azureAdd bool) (bool, error) {
 
 func (e Expression) ToSqlizer(sg SQLGenerator, not bool) (sq.Sqlizer, error) {
 	return sg.Generate(e, not)
+}
+
+// validate rejects a bare attrPath used as a FILTER. RFC 7644 §3.4.2.2 allows
+// attrExp (operator required) or valuePath (attrPath "[" valFilter "]"), not an
+// attribute name alone. The grammar keeps the operator optional so valuePath
+// can omit it; this is the rest of that distinction.
+//
+// valuePath [subAttr] is a PATH, not a FILTER. emails[type eq "work"].value is
+// valid for PATCH and for attrExp (... eq "x"), but not as a standalone filter.
+func (e Expression) validate() error {
+	if e.CompareOp == "" && e.Path.SubAttrName != "" {
+		return errors.Errorf("value path with sub-attribute %q is a PATH, not a FILTER", e.Path.SubAttrName)
+	}
+	if e.CompareOp == "" && e.Path.Filter == nil {
+		return errors.Errorf("filter on attribute %q requires a compare operator or a value path [...]", e.Path.AttrName)
+	}
+	return e.Path.Filter.validate()
 }
 
 type Path struct {
@@ -299,10 +381,16 @@ func (p *Path) GetNodes(coreSchemaID string) *Node {
 	return dummyHead
 }
 
-// 'not' has highest precedence so put it in deepest level
+// NotExpression is a grouped filter, optionally negated. 'not' has the highest
+// precedence so it sits at the deepest level.
+//
+//	FILTER = ... / *1"not" "(" FILTER ")"
+//
+// The ABNF puts no SP after "not" while the RFC examples and identity providers
+// send "not (", so both are accepted.
 type NotExpression struct {
-	Not   bool         `parser:"(@Not "`
-	Group OrExpression `parser:"  '('@@')') | ('('@@')')"`
+	Not   bool         `parser:"(@'not' Whitespace?)?"`
+	Group OrExpression `parser:"'(' Whitespace? @@ Whitespace? ')'"`
 }
 
 var _ Expr = (*NotExpression)(nil)
@@ -340,13 +428,19 @@ func (ne NotExpression) RedactedString() string {
 	}
 }
 
+func (ne NotExpression) validate() error {
+	return ne.Group.validate()
+}
+
 func parserOptions() []participle.Option {
 	return []participle.Option{
 		participle.Lexer(Lex),
-		// order matters
-		participle.Union[Expr](Expression{}, NotExpression{}),
+		// order matters: 'not' is Ident-shaped, try the grouping form first before
+		// falling back to reading it as an attribute name.
+		participle.Union[Expr](NotExpression{}, Expression{}),
 		// RFC 7644 §3.4.2.2: attribute names and operators are case-insensitive.
 		participle.CaseInsensitive("Ident"),
+		participle.UseLookahead(3),
 	}
 }
 
@@ -359,6 +453,9 @@ func ParseFilter(filterStr string) (*OrExpression, error) {
 	if err != nil {
 		return nil, scimerror.NewBadRequestSCIMErr(scimerror.InvalidFilter, errors.Wrapf(err, "failed to parse filter, %s", filterStr))
 	}
+	if err := filter.validate(); err != nil {
+		return nil, scimerror.NewBadRequestSCIMErr(scimerror.InvalidFilter, errors.Wrapf(err, "failed to parse filter, %s", filterStr))
+	}
 	return filter, nil
 }
 
@@ -369,6 +466,10 @@ func ParsePath(pathStr string) (*Path, error) {
 	filterParser := participle.MustBuild[Path](parserOptions()...)
 	path, err := filterParser.ParseString("", pathStr)
 	if err != nil {
+		return nil, scimerror.NewBadRequestSCIMErr(scimerror.InvalidFilter, errors.Wrapf(err, "failed to parse path, %s", pathStr))
+	}
+	// only the bracketed valFilter is a FILTER, a bare attrPath is a valid PATH
+	if err := path.Filter.validate(); err != nil {
 		return nil, scimerror.NewBadRequestSCIMErr(scimerror.InvalidFilter, errors.Wrapf(err, "failed to parse path, %s", pathStr))
 	}
 	return path, nil

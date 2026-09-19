@@ -49,7 +49,7 @@ func EvalHelper(e Expression, p *Node, objV reflect.Value, scimCharacs *scimtag.
 	p = p.Next
 	// if last one, do compare with scim characts
 	if p == nil {
-		return CompareValueAddIfAzure(objV, scimCharacs, e.CompareOp, e.Value, azureFilterAdd)
+		return CompareValueAddIfAzure(objV, scimCharacs, e.CompareOp, string(e.Value), azureFilterAdd)
 	}
 	// else, continue walk down
 	switch loc := p.Value.(type) {
