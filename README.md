@@ -1,10 +1,10 @@
 [![Go Reference](https://pkg.go.dev/badge/github.com/singlestore-labs/scim.svg)](https://pkg.go.dev/github.com/singlestore-labs/scim)
 
-# SingleStore-Lab/scim — SCIM 2.0 library for Go
+# SCIM 2.0 library for Go
 
-A Go (Golang) library for building a **SCIM 2.0** server that receives identity **provisioning** requests from identity providers (IdPs) such as **Microsoft Entra ID (Azure AD)** and **Okta**.
+A Go (Golang) library for building a **SCIM 2.0** server that receives identity provisioning requests from identity providers (IdPs) such as Microsoft Entra ID (Azure AD) and Okta.
 
-SCIM is the **System for Cross-domain Identity Management**. This package implements the SCIM protocol and core schema so you can expose User and Group endpoints, parse filters and PATCH paths, and marshal SCIM JSON. Attribute behavior follows **RFC 7643 SCIM characteristics** declared as `scim` struct tags.
+SCIM is the **System for Cross-domain Identity Management**. This package implements the SCIM protocol and core schema so you can expose User and Group endpoints, parse filters and PATCH paths, and marshal SCIM JSON. Attribute behavior follows RFC 7643 SCIM characteristics declared as `scim` struct tags.
 
 - **RFC 7642** — SCIM definitions, overview, and requirements
 - **RFC 7643** — SCIM core schema (User, Group, schemas, resource types)
@@ -20,8 +20,8 @@ A working in-memory SCIM HTTP server is in [`scimtest`](./scimtest).
 
 ## Features
 
-- **SCIM characteristics** (RFC 7643 §7): `required`, `caseExact`, `mutability`, `returned`, `uniqueness`, `canonicalValues`...
-- SCIM 2.0 **Users** and **Groups** (and other resource types you define)
+- SCIM characteristics (RFC 7643 §7): `required`, `caseExact`, `mutability`, `returned`, `uniqueness`, `canonicalValues`...
+- SCIM 2.0 Users and Groups (and other resource types you define)
 - HTTP router for SCIM endpoints (`/Users`, `/Groups`, `/Schemas`, `/ResourceTypes`, `/ServiceProviderConfig`)
 - Filter parser and evaluation (`userName eq "bjensen"`, nested multi-value filters)
 - PATCH add / remove / replace, including Azure-style filter-add on multi-value attributes
